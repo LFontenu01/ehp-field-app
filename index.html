@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#b8462e">
+<title>EHP Field App</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#f6f5f2;--panel:#fff;--ink:#1d2327;--muted:#5f6b72;--line:#e3e1db;--soft:#f0eee9;--accent:#b8462e;--ok:#2f7d4f;--warn:#b7791f;--bad:#b83232}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15191c;--panel:#1d2226;--ink:#e8eaeb;--muted:#9aa5ab;--line:#2e353a;--soft:#242a2e;--accent:#e0694f}}
+:root[data-theme="dark"]{--bg:#15191c;--panel:#1d2226;--ink:#e8eaeb;--muted:#9aa5ab;--line:#2e353a;--soft:#242a2e;--accent:#e0694f}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px}
+header h1{font-size:18px;margin:0;flex:1}
+header button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:8px;padding:8px 12px;font:600 14px system-ui}
+main{max-width:860px;margin:0 auto;padding:16px 16px 80px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 14px;text-align:left;font:600 16px system-ui;color:var(--ink);cursor:pointer;min-height:96px}
+.tile small{display:block;font-weight:400;color:var(--muted);font-size:13px;margin-top:4px}
+.tile .ic{font-size:26px;display:block;margin-bottom:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.stat{background:var(--soft);border-radius:12px;padding:10px 12px}.stat b{font-size:22px;display:block}.stat span{font-size:12.5px;color:var(--muted)}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
+input,select,textarea{width:100%;font:16px system-ui;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink)}
+textarea{min-height:80px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:13px 18px;font:700 16px system-ui;cursor:pointer}
+.btn.sec{background:var(--soft);color:var(--ink);border:1px solid var(--line)}
+.btn.bad{background:var(--bad)}
+.btn[disabled]{opacity:.5}
+.muted{color:var(--muted);font-size:13.5px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chip{border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:14px;cursor:pointer;user-select:none;background:var(--panel)}
+.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.photo{width:160px;height:160px;border-radius:14px;background:var(--soft);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px dashed var(--line)}
+.photo img{width:100%;height:100%;object-fit:cover}
+.check{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14.5px}
+.check input{width:24px;height:24px;flex:none;margin-top:2px}
+.notice{background:var(--soft);border-left:4px solid var(--accent);padding:10px 12px;border-radius:8px;font-size:14px}
+.err{color:var(--bad);font-weight:600}
+.ok{color:var(--ok);font-weight:600}
+details.node{border-left:2px solid var(--line);margin-left:12px;padding-left:10px}
+details.node>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:8px 4px;cursor:pointer}
+details.node>summary::-webkit-details-marker{display:none}
+.av{width:44px;height:44px;border-radius:50%;background:var(--soft);flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--muted)}
+.av img{width:100%;height:100%;object-fit:cover}
+.lvl{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px;color:#fff}
+.l-provincial{background:#6d2a1a}.l-district{background:#b8462e}.l-llg{background:#d08c1a}.l-ward{background:#2a6f97}.l-village{background:#2f7d4f}
+.bio{display:flex;gap:14px;flex-wrap:wrap;background:var(--soft);border-radius:12px;padding:12px;margin:6px 0 10px}
+.bio img{width:120px;height:120px;border-radius:12px;object-fit:cover}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right}th:first-child,td:first-child{text-align:left}
+.lockwrap{max-width:420px;margin:12vh auto;padding:0 16px}
+.issue{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin:6px 0}
+.issue input[type=number]{padding:8px}
+.foot{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);padding:8px 14px;font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+<header id="hdr" hidden><h1 id="title">EHP Field App</h1><button id="homeBtn">Home</button><button id="lockBtn">Lock</button></header>
+<main id="view"></main>
+<div class="foot" id="foot" hidden><span id="footL"></span><span id="footR"></span></div>
+
+<script src="gazetteer.js"></script>
+<script src="fieldcore.js"></script>
+<script>
+(function(){
+'use strict';
+const GAZ = window.EHP_GAZ, V = document.getElementById('view');
+const LOCK_MS = 5*60*1000;
+let DB, META=null, KEY=null, SYNC=null, MEM=null, lastAct=Date.now(), fails=0, lockUntil=0;
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nice = s => String(s||'').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+const now = () => new Date().toISOString();
+const $ = s => V.querySelector(s);
+function setTitle(t){ document.getElementById('title').textContent=t; }
+
+/* ---------------- boot ---------------- */
+async function boot(){
+  if(!FC.secureOK()){ V.innerHTML=`<div class="lockwrap card"><h2>Cannot start securely</h2><p>This app must be opened from a secure address (https:// or the base laptop's localhost) so it can encrypt data. Ask the data manager for the correct link.</p></div>`; return; }
+  DB = await FC.db('ehp27field',['meta','rec','photo']);
+  META = await DB.get('meta','setup');
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+  ['pointerdown','keydown','touchstart'].forEach(e=>addEventListener(e,()=>{lastAct=Date.now();},{passive:true}));
+  setInterval(()=>{ if(KEY && Date.now()-lastAct>LOCK_MS) lock('Locked after 5 minutes without use.'); },10000);
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) lastAct=Math.min(lastAct,Date.now()); });
+  document.getElementById('homeBtn').onclick=()=>go('home');
+  document.getElementById('lockBtn').onclick=()=>lock('Locked.');
+  addEventListener('online',()=>autoSync());
+  META ? showLock() : showSetup();
+}
+
+/* ---------------- setup & lock ---------------- */
+function showSetup(){
+  document.getElementById('hdr').hidden=true; document.getElementById('foot').hidden=true;
+  V.innerHTML=`<div class="lockwrap"><div class="card"><h2 style="margin-top:0">Set up this tablet</h2>
+  <p class="muted">Done once per tablet by the data manager. The password locks the app and encrypts everything stored on this tablet. The campaign sync key is the same for every tablet and the War Room.</p>
+  <label>Data officer's name</label><input id="s_off" autocomplete="off">
+  <label>Tablet name (e.g. Henganofi Tablet 1)</label><input id="s_dev" autocomplete="off">
+  <label>App password (at least 8 characters)</label><input id="s_p1" type="password" autocomplete="new-password">
+  <label>Repeat app password</label><input id="s_p2" type="password" autocomplete="new-password">
+  <label>Campaign sync key (at least 10 characters)</label><input id="s_k1" type="password" autocomplete="off">
+  <label>Repeat sync key</label><input id="s_k2" type="password" autocomplete="off">
+  <p id="s_msg" class="err"></p><button class="btn" id="s_go" style="width:100%">Set up and open</button></div></div>`;
+  $('#s_go').onclick=async()=>{
+    const off=$('#s_off').value.trim(), dev=$('#s_dev').value.trim(), p1=$('#s_p1').value, p2=$('#s_p2').value, k1=$('#s_k1').value, k2=$('#s_k2').value;
+    const m=$('#s_msg');
+    if(!off||!dev) return m.textContent='Enter the officer and tablet names.';
+    if(p1.length<8||p1!==p2) return m.textContent='Passwords must match and be at least 8 characters.';
+    if(k1.length<10||k1!==k2) return m.textContent='Sync keys must match and be at least 10 characters.';
+    const salt=crypto.getRandomValues(new Uint8Array(16)); const key=await FC.deriveKey(p1,salt);
+    META={salt:FC.b64(salt),verifier:await FC.seal(key,'ehp27'),officer:off,device_id:FC.uuid(),device_name:dev,syncbox:await FC.seal(key,{sync:k1,url:'',token:''}),created:now(),last_export:null};
+    await DB.put('meta','setup',META); KEY=key; SYNC={sync:k1,url:'',token:''}; await loadAll(); go('home');
+  };
+}
+function showLock(msg){
+  document.getElementById('hdr').hidden=true; document.getElementById('foot').hidden=true;
+  V.innerHTML=`<div class="lockwrap"><div class="card" style="text-align:center"><div style="font-size:44px">🔒</div><h2 style="margin:6px 0">EHP Field App</h2>
+  <p class="muted">${esc(META.device_name)} · ${esc(META.officer)}</p>${msg?`<p class="muted">${esc(msg)}</p>`:''}
+  <input id="pw" type="password" placeholder="App password" autocomplete="current-password" style="text-align:center">
+  <p id="pmsg" class="err"></p><button class="btn" id="unl" style="width:100%">Unlock</button></div></div>`;
+  const tryU=async()=>{
+    const m=$('#pmsg'); if(Date.now()<lockUntil) return m.textContent=`Too many attempts. Wait ${Math.ceil((lockUntil-Date.now())/1000)} s.`;
+    try{ const key=await FC.deriveKey($('#pw').value,FC.unb64(META.salt)); const v=await FC.open(key,META.verifier); if(v!=='ehp27') throw 0;
+      KEY=key; SYNC=await FC.open(key,META.syncbox); fails=0; lastAct=Date.now(); await loadAll(); go('home'); }
+    catch(e){ fails++; if(fails>=5){ lockUntil=Date.now()+60000; fails=0; } m.textContent='Wrong password.'; }
+  };
+  $('#unl').onclick=tryU; $('#pw').onkeydown=e=>{ if(e.key==='Enter') tryU(); }; $('#pw').focus();
+}
+function lock(msg){ KEY=null; SYNC=null; MEM=null; showLock(msg); }
+
+/* ---------------- data ---------------- */
+async function loadAll(){
+  MEM={coordinators:[],village_gps:[],village_reports:[]};
+  for(const [id,val] of await DB.all('rec')){ try{ const r=await FC.open(KEY,val.box); (MEM[val.t]||(MEM[val.t]=[])).push(r); }catch(e){} }
+}
+async function saveRec(t,r){ r.updated_at=now(); r.updated_by=META.officer; r.device=META.device_id; if(!r.created_at){ r.created_at=r.updated_at; r.created_by=META.officer; }
+  await DB.put('rec',r.id,{t,box:await FC.seal(KEY,r)}); const arr=MEM[t]; const i=arr.findIndex(x=>x.id===r.id); if(i>=0) arr[i]=r; else arr.push(r); }
+async function savePhoto(id,dataUrl){ await DB.put('photo',id,await FC.seal(KEY,dataUrl)); }
+const photoCache={};
+async function getPhoto(id){ if(!id) return null; if(photoCache[id]) return photoCache[id]; const b=await DB.get('photo',id); if(!b) return null; try{ return photoCache[id]=await FC.open(KEY,b); }catch(e){ return null; } }
+const live = arr => (arr||[]).filter(r=>!r.deleted);
+const vkey = (d,l,w,v) => [d,l,w,v].join('|');
+
+/* ---------------- routing ---------------- */
+function go(page,arg){
+  document.getElementById('hdr').hidden=false; document.getElementById('foot').hidden=false;
+  document.getElementById('footL').textContent=`${META.device_name} · ${META.officer}`;
+  document.getElementById('footR').textContent=navigator.onLine?'Online':'Offline: saving on tablet';
+  window.scrollTo(0,0);
+  ({home,coord:coordForm,tree,gps,report,coverage,sync:syncPage,settings})[page](arg);
+}
+
+/* ---------------- home ---------------- */
+function home(){
+  setTitle('EHP Field App');
+  const C=live(MEM.coordinators), by=k=>C.filter(c=>c.level===k).length;
+  const vc={}; C.filter(c=>c.level==='village').forEach(c=>{ const k=vkey(c.district,c.llg,c.ward,c.village); vc[k]=(vc[k]||0)+1; });
+  const two=Object.values(vc).filter(n=>n>=2).length, totalV=GAZ.reduce((a,d)=>a+d.llgs.reduce((b,l)=>b+l.wards.reduce((c,w)=>c+w.v.length,0),0),0);
+  V.innerHTML=`<div class="card"><div class="stats">
+   ${[['provincial','Provincial'],['district','District'],['llg','LLG'],['ward','Ward'],['village','Village']].map(([k,t])=>`<div class="stat"><b>${by(k)}</b><span>${t} coordinators</span></div>`).join('')}
+   <div class="stat"><b>${two} / ${totalV.toLocaleString()}</b><span>Villages with 2 coordinators</span></div>
+   <div class="stat"><b>${live(MEM.village_gps).length}</b><span>Villages GPS-verified</span></div>
+   <div class="stat"><b>${live(MEM.village_reports).length}</b><span>Village meeting reports</span></div></div>
+   <p class="muted" style="margin:10px 0 0">Last export: ${META.last_export?new Date(META.last_export).toLocaleString():'never'}. Export at base every day.</p></div>
+  <div class="grid">
+   <button class="tile" data-go="coord"><span class="ic">👤</span>Register coordinator<small>Photo, bio data, area, who they report to</small></button>
+   <button class="tile" data-go="tree"><span class="ic">🌳</span>Team hierarchy<small>Province → district → LLG → ward → village</small></button>
+   <button class="tile" data-go="gps"><span class="ic">📍</span>Record village location<small>Tablet GPS fixes the village on the map</small></button>
+   <button class="tile" data-go="report"><span class="ic">🗣️</span>Village meeting report<small>Village needs and support levels (no names)</small></button>
+   <button class="tile" data-go="coverage"><span class="ic">📊</span>Coverage<small>Which villages still need coordinators</small></button>
+   <button class="tile" data-go="sync"><span class="ic">🔄</span>Sync<small>Export to the War Room / import from other tablets</small></button>
+   <button class="tile" data-go="settings"><span class="ic">⚙️</span>Settings<small>Password, sync key, auto-sync, wipe</small></button>
+  </div>`;
+  V.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+
+/* ---------------- location picker ---------------- */
+function picker(el, depth, init={}){
+  // depth: 0 none,1 district,2 llg,3 ward,4 village
+  const s={d:init.district||'',l:init.llg||'',w:init.ward??'',v:init.village||''};
+  function draw(){
+    const D=GAZ.find(x=>x.d===s.d), Lg=D&&D.llgs.find(x=>x.l===s.l), W=Lg&&Lg.wards.find(x=>String(x.n)===String(s.w));
+    let h='';
+    if(depth>=1) h+=`<label>District</label><select data-k="d"><option value="">Choose…</option>${GAZ.map(x=>`<option ${x.d===s.d?'selected':''} value="${esc(x.d)}">${esc(nice(x.d))}</option>`).join('')}</select>`;
+    if(depth>=2) h+=`<label>LLG</label><select data-k="l" ${D?'':'disabled'}><option value="">Choose…</option>${(D?D.llgs:[]).map(x=>`<option ${x.l===s.l?'selected':''} value="${esc(x.l)}">${esc(nice(x.l))}</option>`).join('')}</select>`;
+    if(depth>=3) h+=`<label>Ward</label><select data-k="w" ${Lg?'':'disabled'}><option value="">Choose…</option>${(Lg?Lg.wards:[]).map(x=>`<option ${String(x.n)===String(s.w)?'selected':''} value="${x.n}">${x.n} · ${esc(nice(x.name))}</option>`).join('')}</select>`;
+    if(depth>=4) h+=`<label>Village</label><select data-k="v" ${W?'':'disabled'}><option value="">Choose…</option>${(W?W.v:[]).map(x=>`<option ${x.name===s.v?'selected':''} value="${esc(x.name)}">${esc(x.name)}${x.e?` (${x.e} voters)`:''}</option>`).join('')}<option value="__new" ${s.v&&W&&!W.v.some(x=>x.name===s.v)?'selected':''}>Not listed: type name</option></select>
+      <input data-k="vn" placeholder="Village name" ${s.v&&W&&!W.v.some(x=>x.name===s.v)?'':'hidden'} value="${W&&!W.v.some(x=>x.name===s.v)?esc(s.v):''}">`;
+    el.innerHTML=h;
+    el.querySelectorAll('select').forEach(sel=>sel.onchange=()=>{ const k=sel.dataset.k;
+      if(k==='d'){s.d=sel.value;s.l='';s.w='';s.v='';} if(k==='l'){s.l=sel.value;s.w='';s.v='';} if(k==='w'){s.w=sel.value;s.v='';}
+      if(k==='v'){ s.v=sel.value==='__new'?'':sel.value; if(sel.value==='__new'){ draw(); el.querySelector('[data-k=vn]').hidden=false; el.querySelector('[data-k=v]').value='__new'; return; } }
+      draw(); el.dispatchEvent(new Event('change')); });
+    const vn=el.querySelector('[data-k=vn]'); if(vn) vn.oninput=()=>{ s.v=vn.value.trim(); el.dispatchEvent(new Event('change')); };
+  }
+  draw();
+  return { get:()=>({district:s.d,llg:s.l,ward:s.w===''?'':Number(s.w),village:s.v}), ok:()=>[s.d,s.l,s.w,s.v].slice(0,depth).every(x=>x!==''&&x!=null),
+    villageInfo:()=>{ const D=GAZ.find(x=>x.d===s.d), Lg=D&&D.llgs.find(x=>x.l===s.l), W=Lg&&Lg.wards.find(x=>String(x.n)===String(s.w)); return W&&W.v.find(x=>x.name===s.v); } };
+}
+const area = c => [c.district&&nice(c.district), c.llg&&nice(c.llg), c.ward!==''&&c.ward!=null&&('Ward '+c.ward), c.village].filter(Boolean).join(' · ');
+
+/* ---------------- coordinator form ---------------- */
+async function coordForm(id){
+  const c = id ? {...MEM.coordinators.find(x=>x.id===id)} : {id:FC.uuid(),level:'village',community_roles:[]};
+  setTitle(id?'Edit coordinator':'Register coordinator');
+  let photo = id ? await getPhoto(c.photo_id) : null, newPhoto=null;
+  V.innerHTML=`<div class="card">
+   <label>Level</label><select id="f_level">${FC.LEVELS.map(l=>`<option value="${l.k}" ${l.k===c.level?'selected':''}>${l.t}</option>`).join('')}</select>
+   <div id="f_loc"></div>
+   <label>Reports to</label><select id="f_parent"></select>
+  </div>
+  <div class="card"><div class="row" style="align-items:flex-start"><div style="flex:0 0 170px">
+    <div class="photo" id="f_ph">${photo?`<img src="${photo}">`:'<span class="muted">No photo</span>'}</div>
+    <label class="btn sec" style="display:block;text-align:center;margin-top:8px;font-size:15px">📷 Take photo<input id="f_cam" type="file" accept="image/*" capture="user" hidden></label></div>
+   <div><label>Full name</label><input id="f_name" value="${esc(c.name)}" autocomplete="off">
+    <div class="row"><div><label>Gender</label><select id="f_gender"><option value="">–</option>${['Male','Female'].map(g=>`<option ${c.gender===g?'selected':''}>${g}</option>`).join('')}</select></div>
+     <div><label>Year of birth</label><input id="f_yob" type="number" inputmode="numeric" min="1930" max="2009" value="${esc(c.yob)}"></div></div>
+    <label>Phone</label><input id="f_phone" type="tel" inputmode="tel" value="${esc(c.phone)}"></div></div>
+   <label>Community role</label><div class="chips" id="f_roles">${FC.COMMUNITY_ROLES.map(r=>`<span class="chip ${c.community_roles.includes(r)?'on':''}">${esc(r)}</span>`).join('')}</div>
+   <div class="row"><div><label>Occupation</label><input id="f_occ" value="${esc(c.occupation)}"></div><div><label>Church</label><input id="f_church" value="${esc(c.church)}"></div></div>
+   <label>Short bio / experience</label><textarea id="f_bio">${esc(c.bio)}</textarea>
+   <label>Responsibility</label><textarea id="f_resp">${esc(c.responsibility||FC.levelOf(c.level).resp)}</textarea>
+   <div class="row"><div><label>Date recruited</label><input id="f_date" type="date" value="${esc(c.recruited||new Date().toISOString().slice(0,10))}"></div>
+    <div><label>Status</label><select id="f_status">${['Active','On trial','Inactive','Left'].map(s=>`<option ${c.status===s?'selected':''}>${s}</option>`).join('')}</select></div></div>
+  </div>
+  <div class="card"><label class="check"><input type="checkbox" id="f_consent" ${c.consent?'checked':''}><span>${esc(FC.CONDUCT)}</span></label>
+   <p class="muted">Read this aloud to the coordinator. Tick only if they agree. No consent, no registration.</p>
+   <p id="f_msg" class="err"></p>
+   <div class="row"><button class="btn" id="f_save">Save coordinator</button>${id?'<button class="btn bad" id="f_del" style="flex:0 0 auto">Remove</button>':''}<button class="btn sec" id="f_cancel" style="flex:0 0 auto">Cancel</button></div></div>`;
+  const depthOf = k => FC.levelOf(k).area.length;
+  let pk = picker($('#f_loc'), depthOf(c.level), c);
+  const parentsFor = () => {
+    const lv=$('#f_level').value, idx=FC.LEVELS.findIndex(l=>l.k===lv); if(idx===0) return [];
+    const up=FC.LEVELS[idx-1].k, a=pk.get();
+    return live(MEM.coordinators).filter(p=>p.level===up && p.id!==c.id && (up==='provincial' || ((!a.district||p.district===a.district) && (up==='district'||!a.llg||p.llg===a.llg) && (up!=='ward'||String(p.ward)===String(a.ward)))));
+  };
+  const drawParents = () => { const ps=parentsFor(); $('#f_parent').innerHTML=`<option value="">${ps.length?'Choose…':'None registered yet'}</option>`+ps.map(p=>`<option value="${p.id}" ${p.id===c.parent_id?'selected':''}>${esc(p.name)} · ${esc(area(p)||'Province')}</option>`).join(''); };
+  drawParents();
+  $('#f_loc').addEventListener('change',drawParents);
+  $('#f_level').onchange=()=>{ const lv=$('#f_level').value; pk=picker($('#f_loc'),depthOf(lv),pk.get()); $('#f_loc').addEventListener('change',drawParents); drawParents(); const r=$('#f_resp'); if(FC.LEVELS.some(l=>l.resp===r.value)||!r.value) r.value=FC.levelOf(lv).resp; };
+  V.querySelectorAll('#f_roles .chip').forEach(ch=>ch.onclick=()=>ch.classList.toggle('on'));
+  $('#f_cam').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ newPhoto=await FC.resizeImage(f,480,0.72); $('#f_ph').innerHTML=`<img src="${newPhoto}">`; }catch(err){ $('#f_msg').textContent=err.message; } };
+  $('#f_cancel').onclick=()=>go(id?'tree':'home');
+  if(id) $('#f_del').onclick=async()=>{ if(!confirm('Remove this coordinator? People who report to them will need a new supervisor.')) return; c.deleted=true; await saveRec('coordinators',c); go('tree'); };
+  $('#f_save').onclick=async()=>{
+    const m=$('#f_msg'), lv=$('#f_level').value;
+    if(!$('#f_name').value.trim()) return m.textContent='Enter the full name.';
+    if(!pk.ok()) return m.textContent='Choose the full area for this level.';
+    if(!$('#f_consent').checked) return m.textContent='Consent and code of conduct must be agreed before saving.';
+    if(!photo && !newPhoto && !confirm('Save without a photo?')) return;
+    Object.assign(c, pk.get(), { level:lv, parent_id:$('#f_parent').value||null, name:$('#f_name').value.trim(), gender:$('#f_gender').value, yob:$('#f_yob').value,
+      phone:$('#f_phone').value.trim(), community_roles:[...V.querySelectorAll('#f_roles .chip.on')].map(x=>x.textContent), occupation:$('#f_occ').value.trim(),
+      church:$('#f_church').value.trim(), bio:$('#f_bio').value.trim(), responsibility:$('#f_resp').value.trim(), recruited:$('#f_date').value,
+      status:$('#f_status').value, consent:true, consent_at:c.consent_at||now(), consent_by:c.consent_by||META.officer });
+    if(FC.levelOf(lv).area.length<4) c.village=''; if(FC.levelOf(lv).area.length<3) c.ward=''; if(FC.levelOf(lv).area.length<2) c.llg=''; if(FC.levelOf(lv).area.length<1) c.district='';
+    if(newPhoto){ c.photo_id=c.photo_id||FC.uuid(); await savePhoto(c.photo_id,newPhoto); photoCache[c.photo_id]=newPhoto; }
+    await saveRec('coordinators',c);
+    V.insertAdjacentHTML('afterbegin','<div class="notice ok">Saved on this tablet.</div>');
+    setTimeout(()=>go(id?'tree':'coord'),700);
+  };
+}
+
+/* ---------------- hierarchy ---------------- */
+async function tree(){
+  setTitle('Team hierarchy');
+  const C=live(MEM.coordinators), byId=Object.fromEntries(C.map(c=>[c.id,c])), kids={};
+  C.forEach(c=>{ const p=c.parent_id&&byId[c.parent_id]?c.parent_id:'__root'; (kids[p]=kids[p]||[]).push(c); });
+  const order=Object.fromEntries(FC.LEVELS.map((l,i)=>[l.k,i]));
+  const sortF=(a,b)=>order[a.level]-order[b.level]||String(a.district).localeCompare(b.district)||a.name.localeCompare(b.name);
+  const count=id=>(kids[id]||[]).reduce((a,k)=>a+1+count(k.id),0);
+  const node=c=>`<details class="node" data-id="${c.id}"><summary><div class="av" data-ph="${c.photo_id||''}">${esc((c.name||'?').split(' ').map(x=>x[0]).slice(0,2).join(''))}</div>
+     <div style="flex:1;min-width:0"><div style="font-weight:700">${esc(c.name)} <span class="lvl l-${c.level}">${esc(FC.levelOf(c.level).t.replace(' coordinator',''))}</span></div>
+     <div class="muted">${esc(area(c)||'Province-wide')} · ${count(c.id)} below${c.status&&c.status!=='Active'?' · '+esc(c.status):''}</div></div></summary>
+     <div class="body"></div>${(kids[c.id]||[]).sort(sortF).map(node).join('')}</details>`;
+  V.innerHTML=`<div class="card"><input id="t_q" placeholder="Search a name or place…"><p class="muted">Tap a person to see their photo, bio data and responsibility. People without a supervisor appear at the top level.</p></div>
+   <div class="card" id="t_root">${(kids.__root||[]).sort(sortF).map(node).join('')||'<p class="muted">No coordinators registered yet.</p>'}</div>`;
+  const fillAv=async el=>{ const id=el.dataset.ph; if(!id||el.dataset.done) return; el.dataset.done=1; const p=await getPhoto(id); if(p) el.innerHTML=`<img src="${p}">`; };
+  V.querySelectorAll('#t_root > details > summary .av').forEach(fillAv);
+  V.querySelectorAll('details.node').forEach(d=>d.addEventListener('toggle',async()=>{
+    if(!d.open) return; d.querySelectorAll(':scope > details > summary .av').forEach(fillAv);
+    const body=d.querySelector(':scope > .body'); if(body.dataset.done) return; body.dataset.done=1;
+    const c=byId[d.dataset.id], p=await getPhoto(c.photo_id), sup=byId[c.parent_id];
+    body.innerHTML=`<div class="bio">${p?`<img src="${p}">`:''}<div style="flex:1;min-width:200px">
+      <div><b>${esc(c.name)}</b> · ${esc(FC.levelOf(c.level).t)}</div>
+      <div class="muted">${esc([c.gender, c.yob&&('born '+c.yob), c.phone].filter(Boolean).join(' · '))}</div>
+      <div style="margin-top:6px"><b>Area:</b> ${esc(area(c)||'Province-wide')}</div>
+      <div><b>Reports to:</b> ${sup?esc(sup.name):'–'}</div>
+      <div><b>Community role:</b> ${esc((c.community_roles||[]).join(', ')||'–')}</div>
+      <div><b>Occupation / church:</b> ${esc([c.occupation,c.church].filter(Boolean).join(' / ')||'–')}</div>
+      <div style="margin-top:6px"><b>Responsibility:</b> ${esc(c.responsibility)}</div>
+      ${c.bio?`<div style="margin-top:6px">${esc(c.bio)}</div>`:''}
+      <div class="muted" style="margin-top:6px">Recruited ${esc(c.recruited||'–')} · status ${esc(c.status||'–')} · consent ${c.consent?'✔':'✘'} · recorded by ${esc(c.created_by||'')}</div>
+      <button class="btn sec" data-edit="${c.id}" style="margin-top:8px;padding:9px 14px;font-size:14px">Edit</button></div></div>`;
+    body.querySelector('[data-edit]').onclick=e=>{ e.stopPropagation(); go('coord',c.id); };
+  }));
+  $('#t_q').oninput=e=>{ const q=e.target.value.toLowerCase(); V.querySelectorAll('details.node').forEach(d=>{ const c=byId[d.dataset.id]; const hit=!q||(c.name+' '+area(c)).toLowerCase().includes(q);
+    d.style.display = hit || [...d.querySelectorAll('details.node')].some(x=>(byId[x.dataset.id].name+' '+area(byId[x.dataset.id])).toLowerCase().includes(q)) ? '' : 'none'; if(q&&hit) { let p=d.parentElement.closest('details'); while(p){ p.open=true; p=p.parentElement.closest('details'); } } }); };
+}
+
+/* ---------------- village GPS ---------------- */
+function gps(){
+  setTitle('Record village location');
+  V.innerHTML=`<div class="card"><p class="muted">Stand in the centre of the village (or at the main meeting ground / polling place) and press <b>Get my position</b>. Wait for accuracy under 30 m if possible.</p>
+   <div id="g_loc"></div><label>What is at this point?</label><select id="g_kind"><option>Village centre</option><option>Polling place</option><option>Church / meeting ground</option><option>School</option></select>
+   <label>Place name (optional)</label><input id="g_name" placeholder="e.g. Lihona Primary School">
+   <p id="g_out" class="muted"></p><div class="row"><button class="btn sec" id="g_get">📍 Get my position</button><button class="btn" id="g_save" disabled>Save location</button></div><p id="g_msg" class="err"></p></div>
+   <div class="card"><b>Recorded on this tablet</b><div id="g_list"></div></div>`;
+  const pk=picker($('#g_loc'),4); let pos=null;
+  $('#g_get').onclick=()=>{ $('#g_out').textContent='Getting position…'; if(!navigator.geolocation) return $('#g_out').textContent='This tablet has no GPS access.';
+    navigator.geolocation.getCurrentPosition(p=>{ pos=p.coords; const vi=pk.villageInfo(); let d='';
+      if(vi){ const R=6371, dl=(pos.latitude-vi.lat)*Math.PI/180, dn=(pos.longitude-vi.lon)*Math.PI/180; const a=Math.sin(dl/2)**2+Math.cos(vi.lat*Math.PI/180)*Math.cos(pos.latitude*Math.PI/180)*Math.sin(dn/2)**2; d=` · ${(2*R*Math.asin(Math.sqrt(a))).toFixed(1)} km from the current map pin`; }
+      $('#g_out').innerHTML=`<span class="ok">${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}</span> · accuracy ±${Math.round(pos.accuracy)} m${d}`; $('#g_save').disabled=false; },
+      e=>{ $('#g_out').textContent='Could not get position: '+e.message; },{enableHighAccuracy:true,timeout:45000,maximumAge:0}); };
+  $('#g_save').onclick=async()=>{ if(!pk.ok()) return $('#g_msg').textContent='Choose district, LLG, ward and village.';
+    const a=pk.get(); await saveRec('village_gps',{id:FC.uuid(),...a,kind:$('#g_kind').value,place:$('#g_name').value.trim(),lat:+pos.latitude.toFixed(6),lon:+pos.longitude.toFixed(6),acc:Math.round(pos.accuracy),at:now()});
+    $('#g_msg').innerHTML='<span class="ok">Saved.</span>'; $('#g_save').disabled=true; list(); };
+  const list=()=>{ $('#g_list').innerHTML=`<table><tr><th>Village</th><th>Kind</th><th>±m</th></tr>${live(MEM.village_gps).slice(-30).reverse().map(g=>`<tr><td>${esc(g.village)}<div class="muted">${esc(nice(g.llg))} W${g.ward}</div></td><td>${esc(g.kind)}</td><td>${g.acc}</td></tr>`).join('')}</table>`; }; list();
+}
+
+/* ---------------- village meeting report ---------------- */
+function report(){
+  setTitle('Village meeting report');
+  V.innerHTML=`<div class="card"><p class="notice">Record what the village says it needs and how support stands. <b>Numbers only. Do not write any voter's name here.</b></p>
+   <div id="r_loc"></div><div class="row"><div><label>Date</label><input id="r_date" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div><label>Meeting type</label><select id="r_type"><option>Village meeting</option><option>Church gathering</option><option>Film night</option><option>Market / roadside</option><option>House visits</option></select></div></div>
+   <label>Attendance</label><div class="row"><input id="r_m" type="number" inputmode="numeric" placeholder="Men"><input id="r_w" type="number" inputmode="numeric" placeholder="Women"><input id="r_y" type="number" inputmode="numeric" placeholder="Youth (18–30)"></div></div>
+  <div class="card"><b>What does this village want a governor to fix?</b><p class="muted">For each issue raised, enter how many people raised it and a short note in their words.</p>
+   ${FC.ISSUES.map((t,i)=>`<div class="issue"><span>${esc(t)}</span><input type="number" inputmode="numeric" min="0" data-i="${i}" placeholder="0"></div><input data-n="${i}" placeholder="Note (optional)" hidden>`).join('')}</div>
+  <div class="card"><b>Support in this village (estimates from the coordinators)</b>
+   <div class="row"><div><label>People reached</label><input id="r_reached" type="number" inputmode="numeric"></div><div><label>Supportive (Fontenu no. 1)</label><input id="r_sup" type="number" inputmode="numeric"></div></div>
+   <div class="row"><div><label>Will give no. 2 or 3</label><input id="r_pref" type="number" inputmode="numeric"></div><div><label>Undecided</label><input id="r_und" type="number" inputmode="numeric"></div></div>
+   <label>Main rival support here</label><input id="r_rival" placeholder="e.g. mostly Sia; some Pupune">
+   <label>Notes / follow-up</label><textarea id="r_notes"></textarea><p id="r_msg" class="err"></p><button class="btn" id="r_save">Save report</button></div>`;
+  const pk=picker($('#r_loc'),4);
+  V.querySelectorAll('[data-i]').forEach(inp=>inp.oninput=()=>{ V.querySelector(`[data-n="${inp.dataset.i}"]`).hidden=!(+inp.value>0); });
+  $('#r_save').onclick=async()=>{ if(!pk.ok()) return $('#r_msg').textContent='Choose district, LLG, ward and village.';
+    const issues=FC.ISSUES.map((t,i)=>({issue:t,count:+V.querySelector(`[data-i="${i}"]`).value||0,note:V.querySelector(`[data-n="${i}"]`).value.trim()})).filter(x=>x.count>0);
+    const n=id=>+$(id).value||0;
+    await saveRec('village_reports',{id:FC.uuid(),...pk.get(),date:$('#r_date').value,type:$('#r_type').value,attend:{men:n('#r_m'),women:n('#r_w'),youth:n('#r_y')},issues,
+      support:{reached:n('#r_reached'),supportive:n('#r_sup'),preference:n('#r_pref'),undecided:n('#r_und')},rival:$('#r_rival').value.trim(),notes:$('#r_notes').value.trim()});
+    V.insertAdjacentHTML('afterbegin','<div class="notice ok">Report saved on this tablet.</div>'); setTimeout(()=>go('home'),800); };
+}
+
+/* ---------------- coverage ---------------- */
+function coverage(){
+  setTitle('Coverage');
+  const C=live(MEM.coordinators); const vc={}, wc=new Set(), lc=new Set();
+  C.forEach(c=>{ if(c.level==='village'){ const k=vkey(c.district,c.llg,c.ward,c.village); vc[k]=(vc[k]||0)+1; } if(c.level==='ward') wc.add([c.district,c.llg,c.ward].join('|')); if(c.level==='llg') lc.add(c.district+'|'+c.llg); });
+  const rows=GAZ.map(d=>{ let v=0,v1=0,v2=0,w=0,wcov=0,l=0,lcov=0;
+    d.llgs.forEach(L=>{ l++; if(lc.has(d.d+'|'+L.l)) lcov++; L.wards.forEach(W=>{ w++; if(wc.has([d.d,L.l,W.n].join('|'))) wcov++; W.v.forEach(x=>{ v++; const n=vc[vkey(d.d,L.l,W.n,x.name)]||0; if(n>=1) v1++; if(n>=2) v2++; }); }); });
+    return {d:d.d,v,v1,v2,w,wcov,l,lcov}; });
+  V.innerHTML=`<div class="card"><table><tr><th>District</th><th>LLGs</th><th>Wards</th><th>Villages ≥1</th><th>Villages 2</th></tr>
+   ${rows.map(r=>`<tr><td>${esc(nice(r.d))}</td><td>${r.lcov}/${r.l}</td><td>${r.wcov}/${r.w}</td><td>${r.v1}/${r.v}</td><td>${r.v2}/${r.v}</td></tr>`).join('')}</table>
+   <p class="muted">Target: 1 coordinator per LLG and ward, 2 per village. Counts include everything synced to this tablet.</p></div>`;
+}
+
+/* ---------------- sync ---------------- */
+async function buildPayload(){
+  const photos={}; for(const c of MEM.coordinators){ if(c.photo_id){ const p=await getPhoto(c.photo_id); if(p) photos[c.photo_id]=p; } }
+  return {device:{id:META.device_id,name:META.device_name,officer:META.officer},exported_at:now(),coordinators:MEM.coordinators,village_gps:MEM.village_gps,village_reports:MEM.village_reports,photos};
+}
+async function exportFile(){
+  const pkg=await FC.makePackage(SYNC.sync,await buildPayload());
+  const blob=new Blob([JSON.stringify(pkg)],{type:'application/json'}); const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=`ehp27_${META.device_name.replace(/\W+/g,'_')}_${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.ehp.json`; a.click();
+  META.last_export=now(); await DB.put('meta','setup',META);
+}
+async function importPkg(pkg){
+  const inc=await FC.openPackage(SYNC.sync,pkg); let n=0;
+  for(const t of ['coordinators','village_gps','village_reports']) for(const r of inc[t]||[]){ const o=(MEM[t]||[]).find(x=>x.id===r.id); if(!o||(r.updated_at||'')>(o.updated_at||'')){ await DB.put('rec',r.id,{t,box:await FC.seal(KEY,r)}); if(o) Object.assign(o,r); else MEM[t].push(r); n++; } }
+  for(const [id,p] of Object.entries(inc.photos||{})){ if(!(await DB.get('photo',id))) await savePhoto(id,p); }
+  return n;
+}
+async function autoSync(){
+  if(!KEY||!SYNC||!SYNC.url||!navigator.onLine) return;
+  try{ const pkg=await FC.makePackage(SYNC.sync,await buildPayload());
+    const r=await fetch(SYNC.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({token:SYNC.token,device:META.device_id,package:pkg})});
+    if(r.ok){ META.last_export=now(); await DB.put('meta','setup',META); } }catch(e){}
+}
+setInterval(autoSync,10*60*1000);
+function syncPage(){
+  setTitle('Sync');
+  V.innerHTML=`<div class="card"><b>Send to the War Room</b><p class="muted">Creates one encrypted file containing everything on this tablet (coordinators with photos, village locations and reports). Copy it to the base laptop (USB cable, Bluetooth or shared drive) and load it in the War Room → Field data. Without the campaign sync key, the file cannot be read.</p>
+   <button class="btn" id="y_exp">Export sync file</button><p class="muted">Last export: ${META.last_export?new Date(META.last_export).toLocaleString():'never'}</p></div>
+  <div class="card"><b>Load from another tablet or the War Room master file</b><p class="muted">Use this so every district tablet carries the full team list, which you need when choosing who a new coordinator reports to.</p>
+   <label class="btn sec" style="display:inline-block">Choose sync file<input id="y_imp" type="file" accept=".json,application/json" multiple hidden></label><p id="y_msg"></p></div>
+  <div class="card"><b>Automatic upload</b><p class="muted">${SYNC.url?'On: this tablet uploads its encrypted file every 10 minutes when it has internet, and whenever the connection comes back.':'Off. Set a campaign sync address in Settings to upload automatically whenever there is internet.'}</p>${SYNC.url?'<button class="btn sec" id="y_now">Upload now</button>':''}</div>`;
+  $('#y_exp').onclick=async()=>{ $('#y_exp').disabled=true; try{ await exportFile(); }finally{ $('#y_exp').disabled=false; } };
+  $('#y_imp').onchange=async e=>{ let tot=0; for(const f of e.target.files){ try{ tot+=await importPkg(JSON.parse(await f.text())); }catch(err){ $('#y_msg').innerHTML=`<span class="err">${esc(f.name)}: ${esc(err.message)}</span>`; return; } } $('#y_msg').innerHTML=`<span class="ok">${tot} records added or updated.</span>`; };
+  if(SYNC.url) $('#y_now').onclick=async()=>{ await autoSync(); go('sync'); };
+}
+
+/* ---------------- settings ---------------- */
+function settings(){
+  setTitle('Settings');
+  V.innerHTML=`<div class="card"><b>Change app password</b><label>Current password</label><input id="c_old" type="password"><label>New password</label><input id="c_new" type="password"><label>Repeat new password</label><input id="c_new2" type="password"><p id="c_msg" class="err"></p><button class="btn" id="c_go">Change password</button></div>
+  <div class="card"><b>Automatic upload address</b><p class="muted">Leave empty to sync by file only. The data manager supplies the address and token.</p><label>Sync address (https://…)</label><input id="u_url" value="${esc(SYNC.url)}"><label>Token</label><input id="u_tok" value="${esc(SYNC.token)}"><button class="btn sec" id="u_go" style="margin-top:10px">Save</button></div>
+  <div class="card"><b>Wipe this tablet</b><p class="muted">Deletes every record and photo on this tablet. Export first.</p><button class="btn bad" id="w_go">Wipe tablet</button></div>`;
+  $('#c_go').onclick=async()=>{ const m=$('#c_msg'); try{ const k=await FC.deriveKey($('#c_old').value,FC.unb64(META.salt)); if(await FC.open(k,META.verifier)!=='ehp27') throw 0; }catch(e){ return m.textContent='Current password is wrong.'; }
+    const p=$('#c_new').value; if(p.length<8||p!==$('#c_new2').value) return m.textContent='New passwords must match and be at least 8 characters.';
+    m.textContent='Re-encrypting…'; const salt=crypto.getRandomValues(new Uint8Array(16)), nk=await FC.deriveKey(p,salt);
+    for(const [id,val] of await DB.all('rec')){ const r=await FC.open(KEY,val.box); await DB.put('rec',id,{t:val.t,box:await FC.seal(nk,r)}); }
+    for(const [id,b] of await DB.all('photo')){ const ph=await FC.open(KEY,b); await DB.put('photo',id,await FC.seal(nk,ph)); }
+    META.salt=FC.b64(salt); META.verifier=await FC.seal(nk,'ehp27'); META.syncbox=await FC.seal(nk,SYNC); await DB.put('meta','setup',META); KEY=nk; m.innerHTML='<span class="ok">Password changed.</span>'; };
+  $('#u_go').onclick=async()=>{ SYNC.url=$('#u_url').value.trim(); SYNC.token=$('#u_tok').value.trim(); META.syncbox=await FC.seal(KEY,SYNC); await DB.put('meta','setup',META); go('sync'); };
+  $('#w_go').onclick=async()=>{ if(!confirm('Wipe ALL data on this tablet? This cannot be undone.')) return; if(!confirm('Have you exported? Press OK to wipe.')) return;
+    await DB.clear('rec'); await DB.clear('photo'); await DB.clear('meta'); META=null; KEY=null; MEM=null; showSetup(); };
+}
+
+boot();
+})();
+</script>
+</body>
+</html>

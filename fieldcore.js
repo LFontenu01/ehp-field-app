@@ -113,7 +113,8 @@
     { k: 'district', t: 'District coordinator', area: ['district'], resp: 'Recruits and supervises LLG coordinators; runs district logistics, training and the weekly report.' },
     { k: 'llg', t: 'LLG coordinator', area: ['district', 'llg'], resp: 'Recruits and supervises ward coordinators across the LLG and organises LLG meetings.' },
     { k: 'ward', t: 'Ward coordinator', area: ['district', 'llg', 'ward'], resp: 'Recruits two village coordinators per village, organises ward meetings and the polling-place team.' },
-    { k: 'village', t: 'Village coordinator', area: ['district', 'llg', 'ward', 'village'], resp: 'Organises village meetings, film nights and enrolment checks, and reports village needs and support levels.' }
+    { k: 'village', t: 'Village coordinator', area: ['district', 'llg', 'ward', 'village'], resp: 'Organises village meetings, film nights and enrolment checks, recruits Family Reps from every clan, and reports village needs and support levels.' },
+    { k: 'family', t: 'Family Rep', kin: true, area: ['district', 'llg', 'ward', 'village'], resp: 'Speaks for their family within the clan and tribe: shares campaign information, helps family members check their enrolment, and brings family needs to village meetings.' }
   ];
   const COMMUNITY_ROLES = ['Ward councillor', 'Village court magistrate', 'Clan / tribal leader', 'Pastor / church elder', 'Women\'s leader',
     'Youth leader', 'Teacher', 'Health worker', 'Coffee grower / buyer', 'Business person', 'Public servant', 'Student', 'Farmer', 'Other'];

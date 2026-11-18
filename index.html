@@ -48,7 +48,7 @@ details.node>summary::-webkit-details-marker{display:none}
 .av{width:44px;height:44px;border-radius:50%;background:var(--soft);flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--muted)}
 .av img{width:100%;height:100%;object-fit:cover}
 .lvl{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px;color:#fff}
-.l-provincial{background:#6d2a1a}.l-district{background:#b8462e}.l-llg{background:#d08c1a}.l-ward{background:#2a6f97}.l-village{background:#2f7d4f}
+.l-provincial{background:#6d2a1a}.l-district{background:#b8462e}.l-llg{background:#d08c1a}.l-ward{background:#2a6f97}.l-village{background:#2f7d4f}.l-family{background:#7a3e9d}
 .bio{display:flex;gap:14px;flex-wrap:wrap;background:var(--soft);border-radius:12px;padding:12px;margin:6px 0 10px}
 .bio img{width:120px;height:120px;border-radius:12px;object-fit:cover}
 table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right}th:first-child,td:first-child{text-align:left}
@@ -160,14 +160,14 @@ function home(){
   const vc={}; C.filter(c=>c.level==='village').forEach(c=>{ const k=vkey(c.district,c.llg,c.ward,c.village); vc[k]=(vc[k]||0)+1; });
   const two=Object.values(vc).filter(n=>n>=2).length, totalV=GAZ.reduce((a,d)=>a+d.llgs.reduce((b,l)=>b+l.wards.reduce((c,w)=>c+w.v.length,0),0),0);
   V.innerHTML=`<div class="card"><div class="stats">
-   ${[['provincial','Provincial'],['district','District'],['llg','LLG'],['ward','Ward'],['village','Village']].map(([k,t])=>`<div class="stat"><b>${by(k)}</b><span>${t} coordinators</span></div>`).join('')}
+   ${[['provincial','Provincial coordinators'],['district','District coordinators'],['llg','LLG coordinators'],['ward','Ward coordinators'],['village','Village coordinators'],['family','Family Reps']].map(([k,t])=>`<div class="stat"><b>${by(k)}</b><span>${t}</span></div>`).join('')}
    <div class="stat"><b>${two} / ${totalV.toLocaleString()}</b><span>Villages with 2 coordinators</span></div>
    <div class="stat"><b>${live(MEM.village_gps).length}</b><span>Villages GPS-verified</span></div>
    <div class="stat"><b>${live(MEM.village_reports).length}</b><span>Village meeting reports</span></div></div>
    <p class="muted" style="margin:10px 0 0">Last export: ${META.last_export?new Date(META.last_export).toLocaleString():'never'}. Export at base every day.</p></div>
   <div class="grid">
-   <button class="tile" data-go="coord"><span class="ic">👤</span>Register coordinator<small>Photo, bio data, area, who they report to</small></button>
-   <button class="tile" data-go="tree"><span class="ic">🌳</span>Team hierarchy<small>Province → district → LLG → ward → village</small></button>
+   <button class="tile" data-go="coord"><span class="ic">👤</span>Register coordinator or Family Rep<small>Photo, bio data, area, who they report to</small></button>
+   <button class="tile" data-go="tree"><span class="ic">🌳</span>Team hierarchy<small>Province → district → LLG → ward → village → family</small></button>
    <button class="tile" data-go="gps"><span class="ic">📍</span>Record village location<small>Tablet GPS fixes the village on the map</small></button>
    <button class="tile" data-go="report"><span class="ic">🗣️</span>Village meeting report<small>Village needs and support levels (no names)</small></button>
    <button class="tile" data-go="coverage"><span class="ic">📊</span>Coverage<small>Which villages still need coordinators</small></button>
@@ -200,16 +200,23 @@ function picker(el, depth, init={}){
   return { get:()=>({district:s.d,llg:s.l,ward:s.w===''?'':Number(s.w),village:s.v}), ok:()=>[s.d,s.l,s.w,s.v].slice(0,depth).every(x=>x!==''&&x!=null),
     villageInfo:()=>{ const D=GAZ.find(x=>x.d===s.d), Lg=D&&D.llgs.find(x=>x.l===s.l), W=Lg&&Lg.wards.find(x=>String(x.n)===String(s.w)); return W&&W.v.find(x=>x.name===s.v); } };
 }
-const area = c => [c.district&&nice(c.district), c.llg&&nice(c.llg), c.ward!==''&&c.ward!=null&&('Ward '+c.ward), c.village].filter(Boolean).join(' · ');
+const area = c => [c.district&&nice(c.district), c.llg&&nice(c.llg), c.ward!==''&&c.ward!=null&&('Ward '+c.ward), c.village, c.tribe&&(c.tribe+' tribe'), c.clan&&(c.clan+' clan'), c.family&&(c.family+' family')].filter(Boolean).join(' · ');
 
 /* ---------------- coordinator form ---------------- */
 async function coordForm(id){
   const c = id ? {...MEM.coordinators.find(x=>x.id===id)} : {id:FC.uuid(),level:'village',community_roles:[]};
-  setTitle(id?'Edit coordinator':'Register coordinator');
+  setTitle(id?'Edit team member':'Register team member');
   let photo = id ? await getPhoto(c.photo_id) : null, newPhoto=null;
   V.innerHTML=`<div class="card">
    <label>Level</label><select id="f_level">${FC.LEVELS.map(l=>`<option value="${l.k}" ${l.k===c.level?'selected':''}>${l.t}</option>`).join('')}</select>
    <div id="f_loc"></div>
+   <div id="f_kin" ${FC.levelOf(c.level).kin?'':'hidden'}>
+    <div class="row"><div><label>Tribe</label><input id="f_tribe" list="dl_tribe" value="${esc(c.tribe)}" autocomplete="off"></div>
+     <div><label>Clan</label><input id="f_clan" list="dl_clan" value="${esc(c.clan)}" autocomplete="off"></div></div>
+    <label>Family (family name or ancestor line)</label><input id="f_family" list="dl_family" value="${esc(c.family)}" autocomplete="off">
+    <datalist id="dl_tribe"></datalist><datalist id="dl_clan"></datalist><datalist id="dl_family"></datalist>
+    <p class="muted">Register the Family Rep only. Do not list the family's members.</p>
+   </div>
    <label>Reports to</label><select id="f_parent"></select>
   </div>
   <div class="card"><div class="row" style="align-items:flex-start"><div style="flex:0 0 170px">
@@ -227,7 +234,7 @@ async function coordForm(id){
     <div><label>Status</label><select id="f_status">${['Active','On trial','Inactive','Left'].map(s=>`<option ${c.status===s?'selected':''}>${s}</option>`).join('')}</select></div></div>
   </div>
   <div class="card"><label class="check"><input type="checkbox" id="f_consent" ${c.consent?'checked':''}><span>${esc(FC.CONDUCT)}</span></label>
-   <p class="muted">Read this aloud to the coordinator. Tick only if they agree. No consent, no registration.</p>
+   <p class="muted">Read this aloud to the person. Tick only if they agree. No consent, no registration.</p>
    <p id="f_msg" class="err"></p>
    <div class="row"><button class="btn" id="f_save">Save coordinator</button>${id?'<button class="btn bad" id="f_del" style="flex:0 0 auto">Remove</button>':''}<button class="btn sec" id="f_cancel" style="flex:0 0 auto">Cancel</button></div></div>`;
   const depthOf = k => FC.levelOf(k).area.length;
@@ -235,12 +242,22 @@ async function coordForm(id){
   const parentsFor = () => {
     const lv=$('#f_level').value, idx=FC.LEVELS.findIndex(l=>l.k===lv); if(idx===0) return [];
     const up=FC.LEVELS[idx-1].k, a=pk.get();
-    return live(MEM.coordinators).filter(p=>p.level===up && p.id!==c.id && (up==='provincial' || ((!a.district||p.district===a.district) && (up==='district'||!a.llg||p.llg===a.llg) && (up!=='ward'||String(p.ward)===String(a.ward)))));
+    return live(MEM.coordinators).filter(p=>p.level===up && p.id!==c.id && (up==='provincial' || ((!a.district||p.district===a.district) && (up==='district'||!a.llg||p.llg===a.llg) && ((up!=='ward'&&up!=='village')||String(p.ward)===String(a.ward)) && (up!=='village'||!a.village||p.village===a.village))));
   };
   const drawParents = () => { const ps=parentsFor(); $('#f_parent').innerHTML=`<option value="">${ps.length?'Choose…':'None registered yet'}</option>`+ps.map(p=>`<option value="${p.id}" ${p.id===c.parent_id?'selected':''}>${esc(p.name)} · ${esc(area(p)||'Province')}</option>`).join(''); };
   drawParents();
   $('#f_loc').addEventListener('change',drawParents);
-  $('#f_level').onchange=()=>{ const lv=$('#f_level').value; pk=picker($('#f_loc'),depthOf(lv),pk.get()); $('#f_loc').addEventListener('change',drawParents); drawParents(); const r=$('#f_resp'); if(FC.LEVELS.some(l=>l.resp===r.value)||!r.value) r.value=FC.levelOf(lv).resp; };
+  // Suggest tribes, clans and families already registered in this village, so spellings stay the same.
+  const same=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
+  const drawKin=()=>{ const a=pk.get(), T=$('#f_tribe').value, K=$('#f_clan').value;
+    const reps=live(MEM.coordinators).filter(p=>p.level==='family'&&p.id!==c.id&&p.district===a.district&&p.llg===a.llg&&String(p.ward)===String(a.ward)&&p.village===a.village);
+    const fill=(id,vals)=>{ $(id).innerHTML=[...new Set(vals.filter(Boolean))].sort().map(v=>`<option value="${esc(v)}">`).join(''); };
+    const inTribe=reps.filter(p=>!T.trim()||same(p.tribe,T));
+    fill('#dl_tribe',reps.map(p=>p.tribe)); fill('#dl_clan',inTribe.map(p=>p.clan)); fill('#dl_family',inTribe.filter(p=>!K.trim()||same(p.clan,K)).map(p=>p.family)); };
+  const showKin=()=>{ const kin=!!FC.levelOf($('#f_level').value).kin; $('#f_kin').hidden=!kin; $('#f_save').textContent=kin?'Save Family Rep':'Save coordinator'; drawKin(); };
+  $('#f_loc').addEventListener('change',drawKin); $('#f_tribe').oninput=drawKin; $('#f_clan').oninput=drawKin;
+  showKin();
+  $('#f_level').onchange=()=>{ const lv=$('#f_level').value; pk=picker($('#f_loc'),depthOf(lv),pk.get()); $('#f_loc').addEventListener('change',drawParents); drawParents(); showKin(); const r=$('#f_resp'); if(FC.LEVELS.some(l=>l.resp===r.value)||!r.value) r.value=FC.levelOf(lv).resp; };
   V.querySelectorAll('#f_roles .chip').forEach(ch=>ch.onclick=()=>ch.classList.toggle('on'));
   $('#f_cam').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ newPhoto=await FC.resizeImage(f,480,0.72); $('#f_ph').innerHTML=`<img src="${newPhoto}">`; }catch(err){ $('#f_msg').textContent=err.message; } };
   $('#f_cancel').onclick=()=>go(id?'tree':'home');
@@ -249,12 +266,14 @@ async function coordForm(id){
     const m=$('#f_msg'), lv=$('#f_level').value;
     if(!$('#f_name').value.trim()) return m.textContent='Enter the full name.';
     if(!pk.ok()) return m.textContent='Choose the full area for this level.';
+    const kin=!!FC.levelOf(lv).kin, tribe=$('#f_tribe').value.trim(), clan=$('#f_clan').value.trim(), family=$('#f_family').value.trim();
+    if(kin&&(!tribe||!clan||!family)) return m.textContent='Enter the tribe, clan and family this Family Rep speaks for.';
     if(!$('#f_consent').checked) return m.textContent='Consent and code of conduct must be agreed before saving.';
     if(!photo && !newPhoto && !confirm('Save without a photo?')) return;
     Object.assign(c, pk.get(), { level:lv, parent_id:$('#f_parent').value||null, name:$('#f_name').value.trim(), gender:$('#f_gender').value, yob:$('#f_yob').value,
       phone:$('#f_phone').value.trim(), community_roles:[...V.querySelectorAll('#f_roles .chip.on')].map(x=>x.textContent), occupation:$('#f_occ').value.trim(),
       church:$('#f_church').value.trim(), bio:$('#f_bio').value.trim(), responsibility:$('#f_resp').value.trim(), recruited:$('#f_date').value,
-      status:$('#f_status').value, consent:true, consent_at:c.consent_at||now(), consent_by:c.consent_by||META.officer });
+      status:$('#f_status').value, tribe:kin?tribe:'', clan:kin?clan:'', family:kin?family:'', consent:true, consent_at:c.consent_at||now(), consent_by:c.consent_by||META.officer });
     if(FC.levelOf(lv).area.length<4) c.village=''; if(FC.levelOf(lv).area.length<3) c.ward=''; if(FC.levelOf(lv).area.length<2) c.llg=''; if(FC.levelOf(lv).area.length<1) c.district='';
     if(newPhoto){ c.photo_id=c.photo_id||FC.uuid(); await savePhoto(c.photo_id,newPhoto); photoCache[c.photo_id]=newPhoto; }
     await saveRec('coordinators',c);
@@ -269,7 +288,7 @@ async function tree(){
   const C=live(MEM.coordinators), byId=Object.fromEntries(C.map(c=>[c.id,c])), kids={};
   C.forEach(c=>{ const p=c.parent_id&&byId[c.parent_id]?c.parent_id:'__root'; (kids[p]=kids[p]||[]).push(c); });
   const order=Object.fromEntries(FC.LEVELS.map((l,i)=>[l.k,i]));
-  const sortF=(a,b)=>order[a.level]-order[b.level]||String(a.district).localeCompare(b.district)||a.name.localeCompare(b.name);
+  const sortF=(a,b)=>order[a.level]-order[b.level]||String(a.district).localeCompare(b.district)||String(a.tribe||'').localeCompare(b.tribe||'')||String(a.clan||'').localeCompare(b.clan||'')||a.name.localeCompare(b.name);
   const count=id=>(kids[id]||[]).reduce((a,k)=>a+1+count(k.id),0);
   const node=c=>`<details class="node" data-id="${c.id}"><summary><div class="av" data-ph="${c.photo_id||''}">${esc((c.name||'?').split(' ').map(x=>x[0]).slice(0,2).join(''))}</div>
      <div style="flex:1;min-width:0"><div style="font-weight:700">${esc(c.name)} <span class="lvl l-${c.level}">${esc(FC.levelOf(c.level).t.replace(' coordinator',''))}</span></div>
@@ -348,12 +367,13 @@ function coverage(){
   setTitle('Coverage');
   const C=live(MEM.coordinators); const vc={}, wc=new Set(), lc=new Set();
   C.forEach(c=>{ if(c.level==='village'){ const k=vkey(c.district,c.llg,c.ward,c.village); vc[k]=(vc[k]||0)+1; } if(c.level==='ward') wc.add([c.district,c.llg,c.ward].join('|')); if(c.level==='llg') lc.add(c.district+'|'+c.llg); });
+  const fam={}, clans={}; C.filter(c=>c.level==='family').forEach(c=>{ fam[c.district]=(fam[c.district]||0)+1; (clans[c.district]=clans[c.district]||new Set()).add([c.llg,c.ward,c.village,c.tribe,c.clan].join('|').toLowerCase()); });
   const rows=GAZ.map(d=>{ let v=0,v1=0,v2=0,w=0,wcov=0,l=0,lcov=0;
     d.llgs.forEach(L=>{ l++; if(lc.has(d.d+'|'+L.l)) lcov++; L.wards.forEach(W=>{ w++; if(wc.has([d.d,L.l,W.n].join('|'))) wcov++; W.v.forEach(x=>{ v++; const n=vc[vkey(d.d,L.l,W.n,x.name)]||0; if(n>=1) v1++; if(n>=2) v2++; }); }); });
     return {d:d.d,v,v1,v2,w,wcov,l,lcov}; });
-  V.innerHTML=`<div class="card"><table><tr><th>District</th><th>LLGs</th><th>Wards</th><th>Villages ≥1</th><th>Villages 2</th></tr>
-   ${rows.map(r=>`<tr><td>${esc(nice(r.d))}</td><td>${r.lcov}/${r.l}</td><td>${r.wcov}/${r.w}</td><td>${r.v1}/${r.v}</td><td>${r.v2}/${r.v}</td></tr>`).join('')}</table>
-   <p class="muted">Target: 1 coordinator per LLG and ward, 2 per village. Counts include everything synced to this tablet.</p></div>`;
+  V.innerHTML=`<div class="card"><table><tr><th>District</th><th>LLGs</th><th>Wards</th><th>Villages ≥1</th><th>Villages 2</th><th>Family Reps</th><th>Clans reached</th></tr>
+   ${rows.map(r=>`<tr><td>${esc(nice(r.d))}</td><td>${r.lcov}/${r.l}</td><td>${r.wcov}/${r.w}</td><td>${r.v1}/${r.v}</td><td>${r.v2}/${r.v}</td><td>${fam[r.d]||0}</td><td>${clans[r.d]?clans[r.d].size:0}</td></tr>`).join('')}</table>
+   <p class="muted">Target: 1 coordinator per LLG and ward, 2 per village, and a Family Rep for every family in each clan. Counts include everything synced to this tablet.</p></div>`;
 }
 
 /* ---------------- sync ---------------- */

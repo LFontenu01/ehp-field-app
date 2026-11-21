@@ -87,7 +87,7 @@
   }
   function mergePayload(base, inc) {
     const out = { coordinators: merge(base.coordinators, inc.coordinators), village_gps: merge(base.village_gps, inc.village_gps),
-      village_reports: merge(base.village_reports, inc.village_reports), village_profiles: merge(base.village_profiles, inc.village_profiles), photos: Object.assign({}, base.photos || {}, inc.photos || {}),
+      village_reports: merge(base.village_reports, inc.village_reports), village_profiles: merge(base.village_profiles, inc.village_profiles), languages: merge(base.languages, inc.languages), photos: Object.assign({}, base.photos || {}, inc.photos || {}),
       devices: merge(base.devices, inc.device ? [{ id: inc.device.id, ...inc.device, updated_at: inc.exported_at || '' }] : []) };
     return purgePhotos(out);
   }
@@ -151,8 +151,19 @@
     { k: 'line2', t: 'Local-language line 2', text: '' },
     { k: 'line3', t: 'Local-language line 3', text: '' }
   ];
-  const VOICE_SLOTS = [{ k: 'village', t: 'Village name' }, { k: 'creek', t: 'Water source name' }, { k: 'garden', t: 'Sweet potato garden name' }, ...VOICE_LINES];
+  /* Names are recorded twice per village (take 1 and take 2) to guard against background noise. */
+  const VOICE_NAMES = [{ k: 'village', t: 'Village name', s: 'Village' }, { k: 'creek', t: 'Water source name', s: 'Creek' }, { k: 'garden', t: 'Sweet potato garden name', s: 'Garden' }];
+  const VOICE_SLOTS = VOICE_NAMES.flatMap(n => [1, 2].map(i => ({ k: n.k + '_' + i, base: n.k, take: i, t: n.t + ', take ' + i, s: n.s + ' ' + i })));
   const clipsOf = p => Object.values(((p && p.voice) || {}).clips || {}).filter(c => c && c.id);
+  // Name clips keyed village_1, village_2 … (older records used 'village' for a single take).
+  const nameClips = p => { const c = Object.assign({}, ((p && p.voice) || {}).clips || {}); VOICE_NAMES.forEach(n => { if (c[n.k] && !c[n.k + '_1']) c[n.k + '_1'] = c[n.k]; }); return c; };
+  /* Local languages: the three lines are recorded once per language and fill in automatically for every village that speaks it.
+     Suggestions only; officers can type any language name. */
+  const LANGUAGES = ['Agarabi', 'Alekano (Gahuku)', 'Auyana', 'Awa', 'Benabena', 'Binumarien', 'Dano (Upper Asaro)', 'Fore', 'Gadsup', 'Gimi', 'Kafe', 'Kamano', 'Kambaira', 'Keyagana', 'Siane', 'Tairora', 'Tokano (Lower Asaro)', 'Usarufa', 'Yagaria'];
+  const langKey = n => String(n || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  // The library record for a language: the one with the most recorded lines, newest first.
+  const bestLanguage = (list, name) => { const k = langKey(name); if (!k) return null;
+    return (list || []).filter(L => !L.deleted && L.key === k).sort((a, b) => clipsOf(b).length - clipsOf(a).length || String(b.updated_at).localeCompare(String(a.updated_at)))[0] || null; };
   /* Audio to delete: re-recorded or withdrawn clips, and clips of removed records (never one still in use). */
   function audioPurgeIds(profiles) {
     const out = new Set(), keep = new Set();
@@ -162,5 +173,5 @@
 
   root.FC = { b64, unb64, uuid, secureOK, deriveKey, seal, open, db, makePackage, openPackage, merge, mergePayload, resizeImage,
     LEVELS, COMMUNITY_ROLES, ISSUES, CONDUCT, FACE_CONSENT, faceOK, sidePurgeIds, purgePhotos, sidePhotoIds,
-    VOICE_CONSENT, VOICE_LINES, VOICE_SLOTS, clipsOf, audioPurgeIds, levelOf: k => LEVELS.find(l => l.k === k) };
+    VOICE_CONSENT, VOICE_LINES, VOICE_NAMES, VOICE_SLOTS, clipsOf, nameClips, LANGUAGES, langKey, bestLanguage, audioPurgeIds, levelOf: k => LEVELS.find(l => l.k === k) };
 })(window);

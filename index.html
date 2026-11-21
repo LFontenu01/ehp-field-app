@@ -39,6 +39,9 @@ textarea{min-height:80px}
 .photo img{width:100%;height:100%;object-fit:cover}
 .phl{font-size:12.5px;font-weight:700;color:var(--muted);margin:0 0 4px}.dis{opacity:.45;pointer-events:none}
 .facec{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+.slot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}.slot .st{font-size:13px;margin-top:2px}
+.btn.sm{padding:9px 12px;font-size:14px;flex:0 0 auto}
+.card a{color:var(--accent);font-weight:600}.btn:disabled{opacity:.4;cursor:default}
 .check{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14.5px}
 .check input{width:24px;height:24px;flex:none;margin-top:2px}
 .notice{background:var(--soft);border-left:4px solid var(--accent);padding:10px 12px;border-radius:8px;font-size:14px}
@@ -140,7 +143,7 @@ async function loadAll(){
   await purgeSide();
 }
 // Delete side photos of anyone who has withdrawn face-recognition consent or been removed.
-async function purgeSide(){ for(const i of FC.sidePurgeIds(MEM.coordinators)){ if(await DB.get('photo',i)) await DB.del('photo',i); delete photoCache[i]; } }
+async function purgeSide(){ for(const i of [...FC.sidePurgeIds(MEM.coordinators),...FC.audioPurgeIds(MEM.village_profiles)]){ if(await DB.get('photo',i)) await DB.del('photo',i); delete photoCache[i]; } }
 async function saveRec(t,r){ r.updated_at=now(); r.updated_by=META.officer; r.device=META.device_id; if(!r.created_at){ r.created_at=r.updated_at; r.created_by=META.officer; }
   await DB.put('rec',r.id,{t,box:await FC.seal(KEY,r)}); const arr=MEM[t]; const i=arr.findIndex(x=>x.id===r.id); if(i>=0) arr[i]=r; else arr.push(r); }
 async function savePhoto(id,dataUrl){ await DB.put('photo',id,await FC.seal(KEY,dataUrl)); }
@@ -176,7 +179,7 @@ function home(){
    <button class="tile" data-go="coord"><span class="ic">👤</span>Register coordinator or Family Rep<small>Photo, bio data, area, who they report to</small></button>
    <button class="tile" data-go="tree"><span class="ic">🌳</span>Team hierarchy<small>Province → district → LLG → ward → village → family</small></button>
    <button class="tile" data-go="gps"><span class="ic">📍</span>Record village location<small>Tablet GPS fixes the village on the map</small></button>
-   <button class="tile" data-go="village"><span class="ic">🏞️</span>Village details<small>Water source and sweet potato gardens</small></button>
+   <button class="tile" data-go="village"><span class="ic">🏞️</span>Village details<small>Water source, kaukau gardens, voice recordings</small></button>
    <button class="tile" data-go="report"><span class="ic">🗣️</span>Village meeting report<small>Village needs and support levels (no names)</small></button>
    <button class="tile" data-go="coverage"><span class="ic">📊</span>Coverage<small>Which villages still need coordinators</small></button>
    <button class="tile" data-go="sync"><span class="ic">🔄</span>Sync<small>Export to the War Room / import from other tablets</small></button>
@@ -370,33 +373,93 @@ function gps(){
   const list=()=>{ $('#g_list').innerHTML=`<table><tr><th>Village</th><th>Kind</th><th>±m</th></tr>${live(MEM.village_gps).slice(-30).reverse().map(g=>`<tr><td>${esc(g.village)}<div class="muted">${esc(nice(g.llg))} W${g.ward}</div></td><td>${esc(g.kind)}</td><td>${g.acc}</td></tr>`).join('')}</table>`; }; list();
 }
 
-/* ---------------- village details (water source, sweet potato gardens) ---------------- */
+/* ---------------- village details (water source, sweet potato gardens, voice recordings) ---------------- */
 function villageForm(){
   setTitle('Village details');
   V.innerHTML=`<div class="card"><p class="muted">Fill this in on your first visit to a village. If the village already has details, they load so you can correct them.</p>
    <div id="v_loc"></div>
    <label>Drinking water source</label><input id="v_water" placeholder="Name of the creek, spring or other water source" autocomplete="off">
-   <label>Sweet potato gardens</label><input id="v_garden" placeholder="Name of the mountain or field where the women farm kaukau" autocomplete="off">
-   <p id="v_msg" class="err"></p><div class="row"><button class="btn" id="v_save">Save village details</button></div></div>
-   <div class="card"><b>Villages with details</b><p class="muted" style="margin:4px 0 0">Tap a village to load it.</p><div id="v_list"></div></div>`;
-  const el=$('#v_loc'); let pk=picker(el,4), cur=null;
+   <label>Sweet potato gardens</label><input id="v_garden" placeholder="Name of the mountain or field where the women farm kaukau" autocomplete="off"></div>
+  <div class="card"><b>Voice recordings</b>
+   <p class="muted">A local speaker says each name and line the village's own way. Record somewhere quiet (no radio, wind or roosters), phone 15–20 cm from the mouth, with a second of silence before and after. Play it back and approve it only if it is clear and correct.</p>
+   <div class="row"><div><label>Speaker's name</label><input id="v_spk" autocomplete="off"></div>
+    <div><label>Speaker's role</label><select id="v_role"><option value="">Choose…</option>${['Village coordinator','Family Rep','Elder','Ward councillor','Other'].map(r=>`<option>${r}</option>`).join('')}</select></div></div>
+   <label class="check" style="margin-top:10px"><input type="checkbox" id="v_vc"><span id="v_vctxt">${esc(FC.VOICE_CONSENT.en)}</span></label>
+   <p class="muted"><a href="#" id="v_vclang">Read in Tok Pisin</a> · Read it aloud to the speaker. Recording starts only after they agree.</p>
+   <div id="v_slots"></div>
+   <button class="btn bad" id="v_vdel" style="margin-top:10px" hidden>Delete all recordings for this village</button>
+  </div>
+  <div class="card"><p id="v_msg" class="err"></p><div class="row"><button class="btn" id="v_save">Save village details</button></div></div>
+  <div class="card"><b>Villages with details</b><p class="muted" style="margin:4px 0 0">Tap a village to load it.</p><div id="v_list"></div></div>`;
+  const el=$('#v_loc'); let pk=picker(el,4), cur=null, voice={clips:{}}, pending={}, rec=null, vtpi=false;
   const key=a=>vkey(a.district,a.llg,a.ward,a.village);
+  const msg=h=>{ $('#v_msg').innerHTML=h; };
   const find=a=>live(MEM.village_profiles).filter(p=>key(p)===key(a)).sort((x,y)=>String(y.updated_at).localeCompare(String(x.updated_at)))[0]||null;
-  const load=()=>{ const ex=pk.ok()?find(pk.get()):null; if(ex===cur) return;
+  const sayOf=k=>k==='village'?(pk.ok()?pk.get().village:''):k==='creek'?$('#v_water').value.trim():k==='garden'?$('#v_garden').value.trim():((FC.VOICE_LINES.find(l=>l.k===k)||{}).text||'');
+  const toData=b=>new Promise((ok,no)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=()=>no(r.error); r.readAsDataURL(b); });
+  const play=async k=>{ const src=pending[k]?pending[k].data:(voice.clips[k]?await getPhoto(voice.clips[k].id):null); if(!src) return msg('This recording is held at base, not on this tablet.'); try{ await new Audio(src).play(); }catch(e){ msg('Could not play: '+esc(e.message)); } };
+  function drawSlots(){
+    $('#v_slots').innerHTML=FC.VOICE_SLOTS.map(s=>{ const p=pending[s.k], c=voice.clips[s.k], say=sayOf(s.k), isRec=rec&&rec.k===s.k;
+      const st=isRec?`<span class="err">● Recording… <span id="v_t">0.0</span> s</span>`:p?(p.approved?'<span class="ok">Approved · saves when you press Save</span>':'<span>Recorded · play it back, then approve</span>'):c?`<span class="ok">✔ Saved ${esc(String(c.at||'').slice(0,10))} · ${esc(c.speaker||'')}</span>`:'<span class="muted">Not recorded</span>';
+      const needText=['village','creek','garden'].includes(s.k)&&!say;
+      return `<div class="slot"><div style="flex:1;min-width:180px"><b>${esc(s.t)}</b><div class="muted">${say?'Say: <b>'+esc(say)+'</b>':(needText?'Fill in the name above first':'Line to be supplied by the campaign')}</div><div class="st">${st}</div></div>
+        <button class="btn sec sm" data-rec="${s.k}" ${(rec&&!isRec)||needText?'disabled':''}>${isRec?'■ Stop':(p||c?'↻ Re-record':'● Record')}</button>
+        <button class="btn sec sm" data-play="${s.k}" ${p||c?'':'disabled'}>▶ Play</button>
+        <button class="btn sm" data-ok="${s.k}" ${p&&!p.approved?'':'disabled'}>✔ Approve</button></div>`; }).join('');
+    $('#v_slots').querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>rec&&rec.k===b.dataset.rec?rec.mr.stop():startRec(b.dataset.rec));
+    $('#v_slots').querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>play(b.dataset.play));
+    $('#v_slots').querySelectorAll('[data-ok]').forEach(b=>b.onclick=()=>{ pending[b.dataset.ok].approved=true; drawSlots(); });
+    $('#v_vdel').hidden=!Object.keys(voice.clips).length;
+  }
+  async function startRec(k){
+    if(!$('#v_vc').checked) return msg("Read the speaker consent aloud and tick it before recording.");
+    if(!$('#v_spk').value.trim()) return msg("Enter the speaker's name before recording.");
+    if(!navigator.mediaDevices||!window.MediaRecorder) return msg('This tablet cannot record audio in this browser. Use Chrome.');
+    let stream; try{ stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:false,noiseSuppression:false,autoGainControl:false}}); }
+    catch(e){ return msg('Microphone not available: '+esc(e.message)+'. Allow the microphone for this app.'); }
+    const mime=['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
+    const mr=new MediaRecorder(stream,{...(mime?{mimeType:mime}:{}),audioBitsPerSecond:128000}), chunks=[];
+    mr.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+    mr.onstop=async()=>{ stream.getTracks().forEach(t=>t.stop()); clearInterval(rec.timer); const dur=(Date.now()-rec.t0)/1000; rec=null;
+      const blob=new Blob(chunks,{type:mr.mimeType||mime||'audio/webm'});
+      if(dur<0.6||blob.size<800){ msg('That recording was too short. Try again.'); return drawSlots(); }
+      pending[k]={data:await toData(blob),mime:blob.type,dur:+dur.toFixed(1),approved:false}; msg(''); drawSlots(); };
+    rec={k,mr,t0:Date.now(),timer:setInterval(()=>{ lastAct=Date.now(); const s=(Date.now()-rec.t0)/1000, t=document.getElementById('v_t'); if(t) t.textContent=s.toFixed(1); if(s>=30) mr.stop(); },200)};
+    mr.start(); msg(''); drawSlots();
+  }
+  const load=(force)=>{ const ex=pk.ok()?find(pk.get()):null; if(ex===cur&&!force) return;
+    if(rec) rec.mr.stop();
     $('#v_water').value=ex?ex.water||'':''; $('#v_garden').value=ex?ex.garden||'':''; cur=ex;
-    $('#v_msg').innerHTML=ex?`<span class="muted">Already recorded ${esc(String(ex.updated_at||'').slice(0,10))} by ${esc(ex.updated_by||'')}. Change and save to correct it.</span>`:''; };
-  el.addEventListener('change',load);
+    voice=JSON.parse(JSON.stringify((ex&&ex.voice)||{clips:{}})); voice.clips=voice.clips||{}; pending={};
+    msg(ex?`<span class="muted">Already recorded ${esc(String(ex.updated_at||'').slice(0,10))} by ${esc(ex.updated_by||'')}. Change and save to correct it.</span>`:''); drawSlots(); };
+  el.addEventListener('change',()=>{ load(false); drawSlots(); });
+  $('#v_water').oninput=drawSlots; $('#v_garden').oninput=drawSlots;
+  $('#v_spk').oninput=()=>{ $('#v_vc').checked=false; };   // consent belongs to the named speaker
+  $('#v_vclang').onclick=e=>{ e.preventDefault(); vtpi=!vtpi; $('#v_vctxt').textContent=vtpi?FC.VOICE_CONSENT.tpi:FC.VOICE_CONSENT.en; e.target.textContent=vtpi?'Read in English':'Read in Tok Pisin'; };
   const list=()=>{ const rows=Object.values(live(MEM.village_profiles).reduce((m,p)=>{ const k=key(p); if(!m[k]||String(p.updated_at)>String(m[k].updated_at)) m[k]=p; return m; },{}))
       .sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,40);
-    $('#v_list').innerHTML=rows.length?`<table><tr><th>Village</th><th>Water source</th><th>Kaukau gardens</th></tr>${rows.map(p=>`<tr data-id="${p.id}" style="cursor:pointer"><td>${esc(p.village)}<div class="muted">${esc(nice(p.llg))} · W${esc(p.ward)}</div></td><td>${esc(p.water)}</td><td>${esc(p.garden)}</td></tr>`).join('')}</table>`:'<p class="muted">None yet.</p>';
-    $('#v_list').querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=()=>{ const p=live(MEM.village_profiles).find(x=>x.id===tr.dataset.id); pk=picker(el,4,p); cur=undefined; load(); window.scrollTo(0,0); }); };
-  list();
-  $('#v_save').onclick=async()=>{ const m=$('#v_msg');
-    if(!pk.ok()) return m.textContent='Choose the district, LLG, ward and village.';
+    $('#v_list').innerHTML=rows.length?`<table><tr><th>Village</th><th>Water source</th><th>Kaukau gardens</th><th>🎙</th></tr>${rows.map(p=>`<tr data-id="${p.id}" style="cursor:pointer"><td>${esc(p.village)}<div class="muted">${esc(nice(p.llg))} · W${esc(p.ward)}</div></td><td>${esc(p.water)}</td><td>${esc(p.garden)}</td><td>${FC.clipsOf(p).length}/${FC.VOICE_SLOTS.length}</td></tr>`).join('')}</table>`:'<p class="muted">None yet.</p>';
+    $('#v_list').querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=()=>{ const p=live(MEM.village_profiles).find(x=>x.id===tr.dataset.id); pk=picker(el,4,p); cur=undefined; load(true); window.scrollTo(0,0); }); };
+  list(); drawSlots();
+  const purgeLocal=async ids=>{ for(const i of ids){ await DB.del('photo',i); delete photoCache[i]; } };
+  $('#v_vdel').onclick=async()=>{ if(!cur) return; if(!confirm('Delete every saved recording for this village? Do this when a speaker asks for their recordings to be removed.')) return;
+    const r={...cur}, ids=FC.clipsOf(r).map(c=>c.id); r.voice={clips:{}}; r.audio_purged=[...(r.audio_purged||[]),...ids];
+    await purgeLocal(ids); await saveRec('village_profiles',r); cur=r; voice={clips:{}}; pending={}; drawSlots(); list(); msg('<span class="ok">Recordings deleted. The War Room deletes them at the next sync.</span>'); };
+  $('#v_save').onclick=async()=>{
+    if(rec) return msg('Stop the recording first.');
+    if(!pk.ok()) return msg('Choose the district, LLG, ward and village.');
     const water=$('#v_water').value.trim(), garden=$('#v_garden').value.trim();
-    if(!water||!garden) return m.textContent='Enter both the water source and the sweet potato gardens.';
-    const a=pk.get(), ex=find(a), r=ex?{...ex}:{id:FC.uuid()}; Object.assign(r,a,{water,garden});
-    await saveRec('village_profiles',r); cur=r; m.innerHTML='<span class="ok">Saved on this tablet.</span>'; list(); };
+    if(!water||!garden) return msg('Enter both the water source and the sweet potato gardens.');
+    const ok=Object.entries(pending).filter(([,p])=>p.approved), notOk=Object.keys(pending).length-ok.length;
+    if(ok.length&&!$('#v_vc').checked) return msg('The speaker consent must be ticked to save recordings.');
+    if(notOk&&!confirm(`${notOk} recording(s) not approved will be discarded. Save anyway?`)) return;
+    const a=pk.get(), ex=find(a), r=ex?{...ex}:{id:FC.uuid()}, spk=$('#v_spk').value.trim(), role=$('#v_role').value, purge=[];
+    const clips={...((ex&&ex.voice&&ex.voice.clips)||{})};
+    for(const [k,p] of ok){ if(clips[k]) purge.push(clips[k].id); const id=FC.uuid(); await savePhoto(id,p.data);
+      clips[k]={id,mime:p.mime,dur:p.dur,said:sayOf(k),speaker:spk,role,consent_v:FC.VOICE_CONSENT.v,consent_at:now(),at:now(),by:META.officer}; }
+    Object.assign(r,a,{water,garden,voice:{clips}}); if(purge.length) r.audio_purged=[...(r.audio_purged||[]),...purge];
+    await purgeLocal(purge); await saveRec('village_profiles',r); cur=r; voice=JSON.parse(JSON.stringify(r.voice)); pending={};
+    msg(`<span class="ok">Saved on this tablet${ok.length?` with ${ok.length} new recording(s)`:''}. Export at base to send it to the War Room.</span>`); drawSlots(); list(); };
 }
 
 /* ---------------- village meeting report ---------------- */
@@ -440,7 +503,8 @@ function coverage(){
 async function buildPayload(){
   const photos={}; for(const c of MEM.coordinators){ if(c.photo_id){ const p=await getPhoto(c.photo_id); if(p) photos[c.photo_id]=p; }
     if(FC.faceOK(c)&&c.side_photo_id){ const p=await getPhoto(c.side_photo_id); if(p) photos[c.side_photo_id]=p; } }
-  return {device:{id:META.device_id,name:META.device_name,officer:META.officer},exported_at:now(),coordinators:MEM.coordinators,village_gps:MEM.village_gps,village_reports:MEM.village_reports,village_profiles:MEM.village_profiles,photos};
+  const audio={}; for(const p of live(MEM.village_profiles)) for(const c of FC.clipsOf(p)){ const a=await getPhoto(c.id); if(a) audio[c.id]=a; }
+  return {device:{id:META.device_id,name:META.device_name,officer:META.officer},exported_at:now(),coordinators:MEM.coordinators,village_gps:MEM.village_gps,village_reports:MEM.village_reports,village_profiles:MEM.village_profiles,photos,audio};
 }
 async function exportFile(){
   const pkg=await FC.makePackage(SYNC.sync,await buildPayload());
@@ -452,6 +516,7 @@ async function importPkg(pkg){
   const inc=await FC.openPackage(SYNC.sync,pkg); let n=0;
   for(const t of ['coordinators','village_gps','village_reports','village_profiles']) for(const r of inc[t]||[]){ const o=(MEM[t]||[]).find(x=>x.id===r.id); if(!o||(r.updated_at||'')>(o.updated_at||'')){ await DB.put('rec',r.id,{t,box:await FC.seal(KEY,r)}); if(o) Object.assign(o,r); else MEM[t].push(r); n++; } }
   for(const [id,p] of Object.entries(inc.photos||{})){ if(!(await DB.get('photo',id))) await savePhoto(id,p); }
+  for(const [id,a] of Object.entries(inc.audio||{})){ if(!(await DB.get('photo',id))) await savePhoto(id,a); }
   await purgeSide();
   return n;
 }

@@ -139,6 +139,28 @@
   function purgePhotos(p) { if (p && p.photos) sidePurgeIds(p.coordinators).forEach(i => { delete p.photos[i]; }); return p; }
   const sidePhotoIds = coords => new Set((coords || []).map(c => c.side_photo_id).filter(Boolean));
 
+  /* Village voice recordings: names said the local way, plus three local-language lines (text supplied later). */
+  const VOICE_CONSENT = {
+    v: 'voice-v1-2026-11-21',
+    en: "The speaker agrees that the Fontenu 2027 campaign may keep these voice recordings and use them in campaign audio and videos, including technology that turns the recorded words into Livingston's voice. The speaker can ask for the recordings to be deleted at any time.",
+    tpi: "Mi orait long kempen bilong Livingston Fontenu i holim ol nek bilong mi long dispela rekoding, na yusim long ol odio na video bilong kempen, wantaim teknoloji i senisim nek bilong mi i kamap olsem nek bilong Livingston. Mi ken askim long rausim ol rekoding long wanem taim mi laik."
+  };
+  // Fill in `text` when the campaign supplies the three lines; the tablets show it as the line to be spoken.
+  const VOICE_LINES = [
+    { k: 'line1', t: 'Local-language line 1', text: '' },
+    { k: 'line2', t: 'Local-language line 2', text: '' },
+    { k: 'line3', t: 'Local-language line 3', text: '' }
+  ];
+  const VOICE_SLOTS = [{ k: 'village', t: 'Village name' }, { k: 'creek', t: 'Water source name' }, { k: 'garden', t: 'Sweet potato garden name' }, ...VOICE_LINES];
+  const clipsOf = p => Object.values(((p && p.voice) || {}).clips || {}).filter(c => c && c.id);
+  /* Audio to delete: re-recorded or withdrawn clips, and clips of removed records (never one still in use). */
+  function audioPurgeIds(profiles) {
+    const out = new Set(), keep = new Set();
+    (profiles || []).forEach(p => { (p.audio_purged || []).forEach(i => out.add(i)); clipsOf(p).forEach(c => (p.deleted ? out : keep).add(c.id)); });
+    keep.forEach(i => out.delete(i)); return out;
+  }
+
   root.FC = { b64, unb64, uuid, secureOK, deriveKey, seal, open, db, makePackage, openPackage, merge, mergePayload, resizeImage,
-    LEVELS, COMMUNITY_ROLES, ISSUES, CONDUCT, FACE_CONSENT, faceOK, sidePurgeIds, purgePhotos, sidePhotoIds, levelOf: k => LEVELS.find(l => l.k === k) };
+    LEVELS, COMMUNITY_ROLES, ISSUES, CONDUCT, FACE_CONSENT, faceOK, sidePurgeIds, purgePhotos, sidePhotoIds,
+    VOICE_CONSENT, VOICE_LINES, VOICE_SLOTS, clipsOf, audioPurgeIds, levelOf: k => LEVELS.find(l => l.k === k) };
 })(window);

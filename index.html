@@ -37,6 +37,8 @@ textarea{min-height:80px}
 .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .photo{width:160px;height:160px;border-radius:14px;background:var(--soft);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px dashed var(--line)}
 .photo img{width:100%;height:100%;object-fit:cover}
+.phl{font-size:12.5px;font-weight:700;color:var(--muted);margin:0 0 4px}.dis{opacity:.45;pointer-events:none}
+.facec{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
 .check{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14.5px}
 .check input{width:24px;height:24px;flex:none;margin-top:2px}
 .notice{background:var(--soft);border-left:4px solid var(--accent);padding:10px 12px;border-radius:8px;font-size:14px}
@@ -135,7 +137,10 @@ function lock(msg){ KEY=null; SYNC=null; MEM=null; showLock(msg); }
 async function loadAll(){
   MEM={coordinators:[],village_gps:[],village_reports:[]};
   for(const [id,val] of await DB.all('rec')){ try{ const r=await FC.open(KEY,val.box); (MEM[val.t]||(MEM[val.t]=[])).push(r); }catch(e){} }
+  await purgeSide();
 }
+// Delete side photos of anyone who has withdrawn face-recognition consent or been removed.
+async function purgeSide(){ for(const i of FC.sidePurgeIds(MEM.coordinators)){ if(await DB.get('photo',i)) await DB.del('photo',i); delete photoCache[i]; } }
 async function saveRec(t,r){ r.updated_at=now(); r.updated_by=META.officer; r.device=META.device_id; if(!r.created_at){ r.created_at=r.updated_at; r.created_by=META.officer; }
   await DB.put('rec',r.id,{t,box:await FC.seal(KEY,r)}); const arr=MEM[t]; const i=arr.findIndex(x=>x.id===r.id); if(i>=0) arr[i]=r; else arr.push(r); }
 async function savePhoto(id,dataUrl){ await DB.put('photo',id,await FC.seal(KEY,dataUrl)); }
@@ -163,7 +168,8 @@ function home(){
    ${[['provincial','Provincial coordinators'],['district','District coordinators'],['llg','LLG coordinators'],['ward','Ward coordinators'],['village','Village coordinators'],['family','Family Reps']].map(([k,t])=>`<div class="stat"><b>${by(k)}</b><span>${t}</span></div>`).join('')}
    <div class="stat"><b>${two} / ${totalV.toLocaleString()}</b><span>Villages with 2 coordinators</span></div>
    <div class="stat"><b>${live(MEM.village_gps).length}</b><span>Villages GPS-verified</span></div>
-   <div class="stat"><b>${live(MEM.village_reports).length}</b><span>Village meeting reports</span></div></div>
+   <div class="stat"><b>${live(MEM.village_reports).length}</b><span>Village meeting reports</span></div>
+   <div class="stat"><b>${C.filter(FC.faceOK).length} / ${C.length}</b><span>Face-recognition consents</span></div></div>
    <p class="muted" style="margin:10px 0 0">Last export: ${META.last_export?new Date(META.last_export).toLocaleString():'never'}. Export at base every day.</p></div>
   <div class="grid">
    <button class="tile" data-go="coord"><span class="ic">👤</span>Register coordinator or Family Rep<small>Photo, bio data, area, who they report to</small></button>
@@ -206,7 +212,7 @@ const area = c => [c.district&&nice(c.district), c.llg&&nice(c.llg), c.ward!==''
 async function coordForm(id){
   const c = id ? {...MEM.coordinators.find(x=>x.id===id)} : {id:FC.uuid(),level:'village',community_roles:[]};
   setTitle(id?'Edit team member':'Register team member');
-  let photo = id ? await getPhoto(c.photo_id) : null, newPhoto=null;
+  let photo = id ? await getPhoto(c.photo_id) : null, newPhoto=null, side = id && c.side_photo_id ? await getPhoto(c.side_photo_id) : null, newSide=null;
   V.innerHTML=`<div class="card">
    <label>Level</label><select id="f_level">${FC.LEVELS.map(l=>`<option value="${l.k}" ${l.k===c.level?'selected':''}>${l.t}</option>`).join('')}</select>
    <div id="f_loc"></div>
@@ -220,8 +226,13 @@ async function coordForm(id){
    <label>Reports to</label><select id="f_parent"></select>
   </div>
   <div class="card"><div class="row" style="align-items:flex-start"><div style="flex:0 0 170px">
+    <div class="phl">1 · Front: face forward</div>
     <div class="photo" id="f_ph">${photo?`<img src="${photo}">`:'<span class="muted">No photo</span>'}</div>
-    <label class="btn sec" style="display:block;text-align:center;margin-top:8px;font-size:15px">📷 Take photo<input id="f_cam" type="file" accept="image/*" capture="user" hidden></label></div>
+    <label class="btn sec" style="display:block;text-align:center;margin-top:8px;font-size:15px">📷 Front photo<input id="f_cam" type="file" accept="image/*" capture="user" hidden></label>
+    <div class="phl" style="margin-top:14px">2 · Side: head turned halfway</div>
+    <div class="photo" id="f_ph2">${side?`<img src="${side}">`:(c.side_photo_id&&c.face_consent?'<span class="muted" style="padding:8px;text-align:center">Side photo held at base</span>':'<span class="muted" style="padding:8px;text-align:center">Needs face-recognition consent</span>')}</div>
+    <label class="btn sec" id="f_cam2l" style="display:block;text-align:center;margin-top:8px;font-size:15px">📷 Side photo<input id="f_cam2" type="file" accept="image/*" capture="user" hidden></label>
+    <p class="muted" style="font-size:12px;margin:8px 0 0">Good light, no hat or sunglasses, face filling the frame. For the side photo, ask them to turn their head about halfway (45°).</p></div>
    <div><label>Full name</label><input id="f_name" value="${esc(c.name)}" autocomplete="off">
     <div class="row"><div><label>Gender</label><select id="f_gender"><option value="">–</option>${['Male','Female'].map(g=>`<option ${c.gender===g?'selected':''}>${g}</option>`).join('')}</select></div>
      <div><label>Year of birth</label><input id="f_yob" type="number" inputmode="numeric" min="1930" max="2009" value="${esc(c.yob)}"></div></div>
@@ -235,6 +246,10 @@ async function coordForm(id){
   </div>
   <div class="card"><label class="check"><input type="checkbox" id="f_consent" ${c.consent?'checked':''}><span>${esc(FC.CONDUCT)}</span></label>
    <p class="muted">Read this aloud to the person. Tick only if they agree. No consent, no registration.</p>
+   <div class="facec"><label class="check"><input type="checkbox" id="f_face" ${c.face_consent?'checked':''}><span><b>Face recognition (optional).</b> <span id="f_facetxt">${esc(FC.FACE_CONSENT.en)}</span></span></label>
+    <p class="muted"><a href="#" id="f_facelang">Read in Tok Pisin</a> · Read it aloud and tick only if they agree. If they say no, still register them: leave it unticked and skip the side photo.</p>
+    ${c.face_consent&&c.face_consent_at?`<p class="muted">Consent given ${esc(String(c.face_consent_at).slice(0,10))}, recorded by ${esc(c.face_consent_by||'')}.</p>`:''}${!c.face_consent&&c.face_withdrawn_at?`<p class="muted">Consent withdrawn ${esc(String(c.face_withdrawn_at).slice(0,10))}.</p>`:''}
+    <p class="notice" id="f_facewarn" hidden>Saving will withdraw face-recognition consent and delete the side photo.</p></div>
    <p id="f_msg" class="err"></p>
    <div class="row"><button class="btn" id="f_save">Save coordinator</button>${id?'<button class="btn bad" id="f_del" style="flex:0 0 auto">Remove</button>':''}<button class="btn sec" id="f_cancel" style="flex:0 0 auto">Cancel</button></div></div>`;
   const depthOf = k => FC.levelOf(k).area.length;
@@ -260,8 +275,15 @@ async function coordForm(id){
   $('#f_level').onchange=()=>{ const lv=$('#f_level').value; pk=picker($('#f_loc'),depthOf(lv),pk.get()); $('#f_loc').addEventListener('change',drawParents); drawParents(); showKin(); const r=$('#f_resp'); if(FC.LEVELS.some(l=>l.resp===r.value)||!r.value) r.value=FC.levelOf(lv).resp; };
   V.querySelectorAll('#f_roles .chip').forEach(ch=>ch.onclick=()=>ch.classList.toggle('on'));
   $('#f_cam').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ newPhoto=await FC.resizeImage(f,480,0.72); $('#f_ph').innerHTML=`<img src="${newPhoto}">`; }catch(err){ $('#f_msg').textContent=err.message; } };
+  $('#f_cam2').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ newSide=await FC.resizeImage(f,480,0.72); $('#f_ph2').innerHTML=`<img src="${newSide}">`; }catch(err){ $('#f_msg').textContent=err.message; } };
+  const faceUI=()=>{ const on=$('#f_face').checked; $('#f_cam2l').classList.toggle('dis',!on); $('#f_facewarn').hidden=!(c.face_consent&&!on);
+    if(!on&&!side&&!newSide&&!(c.side_photo_id&&c.face_consent)) $('#f_ph2').innerHTML='<span class="muted" style="padding:8px;text-align:center">Needs face-recognition consent</span>';
+    if(on&&!side&&!newSide&&!c.side_photo_id) $('#f_ph2').innerHTML='<span class="muted" style="padding:8px;text-align:center">Take the side photo</span>'; };
+  $('#f_face').onchange=faceUI; faceUI();
+  let tpi=false; $('#f_facelang').onclick=e=>{ e.preventDefault(); tpi=!tpi; $('#f_facetxt').textContent=tpi?FC.FACE_CONSENT.tpi:FC.FACE_CONSENT.en; e.target.textContent=tpi?'Read in English':'Read in Tok Pisin'; };
+  const dropSide=async()=>{ if(c.side_photo_id){ c.side_photo_purged=[...(c.side_photo_purged||[]),c.side_photo_id]; await DB.del('photo',c.side_photo_id); delete photoCache[c.side_photo_id]; c.side_photo_id=null; } };
   $('#f_cancel').onclick=()=>go(id?'tree':'home');
-  if(id) $('#f_del').onclick=async()=>{ if(!confirm('Remove this coordinator? People who report to them will need a new supervisor.')) return; c.deleted=true; await saveRec('coordinators',c); go('tree'); };
+  if(id) $('#f_del').onclick=async()=>{ if(!confirm('Remove this person? People who report to them will need a new supervisor. Their side photo is deleted.')) return; c.deleted=true; await dropSide(); await saveRec('coordinators',c); go('tree'); };
   $('#f_save').onclick=async()=>{
     const m=$('#f_msg'), lv=$('#f_level').value;
     if(!$('#f_name').value.trim()) return m.textContent='Enter the full name.';
@@ -269,13 +291,19 @@ async function coordForm(id){
     const kin=!!FC.levelOf(lv).kin, tribe=$('#f_tribe').value.trim(), clan=$('#f_clan').value.trim(), family=$('#f_family').value.trim();
     if(kin&&(!tribe||!clan||!family)) return m.textContent='Enter the tribe, clan and family this Family Rep speaks for.';
     if(!$('#f_consent').checked) return m.textContent='Consent and code of conduct must be agreed before saving.';
-    if(!photo && !newPhoto && !confirm('Save without a photo?')) return;
+    const face=$('#f_face').checked, hasFront=!!(photo||newPhoto), hasSide=!!(newSide||(c.side_photo_id&&c.face_consent));
+    if(!hasFront){ if(!id||face) return m.textContent='Take the front photo (face forward).'; if(!confirm('No front photo on this record. Save anyway?')) return; }
+    if(face&&!hasSide) return m.textContent='Face-recognition consent needs the side photo too. Ask them to turn their head halfway and take it.';
+    if(c.face_consent&&!face&&!confirm('Withdraw face-recognition consent? The side photo will be deleted.')) return;
     Object.assign(c, pk.get(), { level:lv, parent_id:$('#f_parent').value||null, name:$('#f_name').value.trim(), gender:$('#f_gender').value, yob:$('#f_yob').value,
       phone:$('#f_phone').value.trim(), community_roles:[...V.querySelectorAll('#f_roles .chip.on')].map(x=>x.textContent), occupation:$('#f_occ').value.trim(),
       church:$('#f_church').value.trim(), bio:$('#f_bio').value.trim(), responsibility:$('#f_resp').value.trim(), recruited:$('#f_date').value,
       status:$('#f_status').value, tribe:kin?tribe:'', clan:kin?clan:'', family:kin?family:'', consent:true, consent_at:c.consent_at||now(), consent_by:c.consent_by||META.officer });
     if(FC.levelOf(lv).area.length<4) c.village=''; if(FC.levelOf(lv).area.length<3) c.ward=''; if(FC.levelOf(lv).area.length<2) c.llg=''; if(FC.levelOf(lv).area.length<1) c.district='';
     if(newPhoto){ c.photo_id=c.photo_id||FC.uuid(); await savePhoto(c.photo_id,newPhoto); photoCache[c.photo_id]=newPhoto; }
+    if(face){ if(!c.face_consent){ c.face_consent_at=now(); c.face_consent_by=META.officer; c.face_consent_v=FC.FACE_CONSENT.v; } c.face_consent=true;
+      if(newSide){ c.side_photo_id=c.side_photo_id||FC.uuid(); await savePhoto(c.side_photo_id,newSide); photoCache[c.side_photo_id]=newSide; } }
+    else { if(c.face_consent) c.face_withdrawn_at=now(); c.face_consent=false; await dropSide(); }
     await saveRec('coordinators',c);
     V.insertAdjacentHTML('afterbegin','<div class="notice ok">Saved on this tablet.</div>');
     setTimeout(()=>go(id?'tree':'coord'),700);
@@ -301,8 +329,8 @@ async function tree(){
   V.querySelectorAll('details.node').forEach(d=>d.addEventListener('toggle',async()=>{
     if(!d.open) return; d.querySelectorAll(':scope > details > summary .av').forEach(fillAv);
     const body=d.querySelector(':scope > .body'); if(body.dataset.done) return; body.dataset.done=1;
-    const c=byId[d.dataset.id], p=await getPhoto(c.photo_id), sup=byId[c.parent_id];
-    body.innerHTML=`<div class="bio">${p?`<img src="${p}">`:''}<div style="flex:1;min-width:200px">
+    const c=byId[d.dataset.id], p=await getPhoto(c.photo_id), p2=FC.faceOK(c)?await getPhoto(c.side_photo_id):null, sup=byId[c.parent_id];
+    body.innerHTML=`<div class="bio">${p?`<img src="${p}">`:''}${p2?`<img src="${p2}">`:''}<div style="flex:1;min-width:200px">
       <div><b>${esc(c.name)}</b> · ${esc(FC.levelOf(c.level).t)}</div>
       <div class="muted">${esc([c.gender, c.yob&&('born '+c.yob), c.phone].filter(Boolean).join(' · '))}</div>
       <div style="margin-top:6px"><b>Area:</b> ${esc(area(c)||'Province-wide')}</div>
@@ -312,6 +340,7 @@ async function tree(){
       <div style="margin-top:6px"><b>Responsibility:</b> ${esc(c.responsibility)}</div>
       ${c.bio?`<div style="margin-top:6px">${esc(c.bio)}</div>`:''}
       <div class="muted" style="margin-top:6px">Recruited ${esc(c.recruited||'–')} · status ${esc(c.status||'–')} · consent ${c.consent?'✔':'✘'} · recorded by ${esc(c.created_by||'')}</div>
+      <div class="muted">Face recognition: ${FC.faceOK(c)?'✔ consented '+esc(String(c.face_consent_at||'').slice(0,10)):(c.face_withdrawn_at?'withdrawn '+esc(String(c.face_withdrawn_at).slice(0,10)):'not consented')}</div>
       <button class="btn sec" data-edit="${c.id}" style="margin-top:8px;padding:9px 14px;font-size:14px">Edit</button></div></div>`;
     body.querySelector('[data-edit]').onclick=e=>{ e.stopPropagation(); go('coord',c.id); };
   }));
@@ -378,7 +407,8 @@ function coverage(){
 
 /* ---------------- sync ---------------- */
 async function buildPayload(){
-  const photos={}; for(const c of MEM.coordinators){ if(c.photo_id){ const p=await getPhoto(c.photo_id); if(p) photos[c.photo_id]=p; } }
+  const photos={}; for(const c of MEM.coordinators){ if(c.photo_id){ const p=await getPhoto(c.photo_id); if(p) photos[c.photo_id]=p; }
+    if(FC.faceOK(c)&&c.side_photo_id){ const p=await getPhoto(c.side_photo_id); if(p) photos[c.side_photo_id]=p; } }
   return {device:{id:META.device_id,name:META.device_name,officer:META.officer},exported_at:now(),coordinators:MEM.coordinators,village_gps:MEM.village_gps,village_reports:MEM.village_reports,photos};
 }
 async function exportFile(){
@@ -391,6 +421,7 @@ async function importPkg(pkg){
   const inc=await FC.openPackage(SYNC.sync,pkg); let n=0;
   for(const t of ['coordinators','village_gps','village_reports']) for(const r of inc[t]||[]){ const o=(MEM[t]||[]).find(x=>x.id===r.id); if(!o||(r.updated_at||'')>(o.updated_at||'')){ await DB.put('rec',r.id,{t,box:await FC.seal(KEY,r)}); if(o) Object.assign(o,r); else MEM[t].push(r); n++; } }
   for(const [id,p] of Object.entries(inc.photos||{})){ if(!(await DB.get('photo',id))) await savePhoto(id,p); }
+  await purgeSide();
   return n;
 }
 async function autoSync(){

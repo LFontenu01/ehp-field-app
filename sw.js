@@ -1,5 +1,5 @@
 // Offline cache for the EHP field app. Bump VERSION whenever the app files change.
-const VERSION = 'ehp27-field-v4';
+const VERSION = 'ehp27-field-v5';
 const FILES = ['./', 'index.html', 'fieldcore.js', 'gazetteer.js', 'manifest.webmanifest', 'icon.svg'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

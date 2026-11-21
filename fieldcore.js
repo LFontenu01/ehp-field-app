@@ -87,7 +87,7 @@
   }
   function mergePayload(base, inc) {
     const out = { coordinators: merge(base.coordinators, inc.coordinators), village_gps: merge(base.village_gps, inc.village_gps),
-      village_reports: merge(base.village_reports, inc.village_reports), photos: Object.assign({}, base.photos || {}, inc.photos || {}),
+      village_reports: merge(base.village_reports, inc.village_reports), village_profiles: merge(base.village_profiles, inc.village_profiles), photos: Object.assign({}, base.photos || {}, inc.photos || {}),
       devices: merge(base.devices, inc.device ? [{ id: inc.device.id, ...inc.device, updated_at: inc.exported_at || '' }] : []) };
     return purgePhotos(out);
   }

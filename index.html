@@ -135,7 +135,7 @@ function lock(msg){ KEY=null; SYNC=null; MEM=null; showLock(msg); }
 
 /* ---------------- data ---------------- */
 async function loadAll(){
-  MEM={coordinators:[],village_gps:[],village_reports:[]};
+  MEM={coordinators:[],village_gps:[],village_reports:[],village_profiles:[]};
   for(const [id,val] of await DB.all('rec')){ try{ const r=await FC.open(KEY,val.box); (MEM[val.t]||(MEM[val.t]=[])).push(r); }catch(e){} }
   await purgeSide();
 }
@@ -155,7 +155,7 @@ function go(page,arg){
   document.getElementById('footL').textContent=`${META.device_name} · ${META.officer}`;
   document.getElementById('footR').textContent=navigator.onLine?'Online':'Offline: saving on tablet';
   window.scrollTo(0,0);
-  ({home,coord:coordForm,tree,gps,report,coverage,sync:syncPage,settings})[page](arg);
+  ({home,coord:coordForm,tree,gps,village:villageForm,report,coverage,sync:syncPage,settings})[page](arg);
 }
 
 /* ---------------- home ---------------- */
@@ -169,12 +169,14 @@ function home(){
    <div class="stat"><b>${two} / ${totalV.toLocaleString()}</b><span>Villages with 2 coordinators</span></div>
    <div class="stat"><b>${live(MEM.village_gps).length}</b><span>Villages GPS-verified</span></div>
    <div class="stat"><b>${live(MEM.village_reports).length}</b><span>Village meeting reports</span></div>
+   <div class="stat"><b>${new Set(live(MEM.village_profiles).map(p=>vkey(p.district,p.llg,p.ward,p.village))).size}</b><span>Villages with details</span></div>
    <div class="stat"><b>${C.filter(FC.faceOK).length} / ${C.length}</b><span>Face-recognition consents</span></div></div>
    <p class="muted" style="margin:10px 0 0">Last export: ${META.last_export?new Date(META.last_export).toLocaleString():'never'}. Export at base every day.</p></div>
   <div class="grid">
    <button class="tile" data-go="coord"><span class="ic">👤</span>Register coordinator or Family Rep<small>Photo, bio data, area, who they report to</small></button>
    <button class="tile" data-go="tree"><span class="ic">🌳</span>Team hierarchy<small>Province → district → LLG → ward → village → family</small></button>
    <button class="tile" data-go="gps"><span class="ic">📍</span>Record village location<small>Tablet GPS fixes the village on the map</small></button>
+   <button class="tile" data-go="village"><span class="ic">🏞️</span>Village details<small>Water source and sweet potato gardens</small></button>
    <button class="tile" data-go="report"><span class="ic">🗣️</span>Village meeting report<small>Village needs and support levels (no names)</small></button>
    <button class="tile" data-go="coverage"><span class="ic">📊</span>Coverage<small>Which villages still need coordinators</small></button>
    <button class="tile" data-go="sync"><span class="ic">🔄</span>Sync<small>Export to the War Room / import from other tablets</small></button>
@@ -368,6 +370,35 @@ function gps(){
   const list=()=>{ $('#g_list').innerHTML=`<table><tr><th>Village</th><th>Kind</th><th>±m</th></tr>${live(MEM.village_gps).slice(-30).reverse().map(g=>`<tr><td>${esc(g.village)}<div class="muted">${esc(nice(g.llg))} W${g.ward}</div></td><td>${esc(g.kind)}</td><td>${g.acc}</td></tr>`).join('')}</table>`; }; list();
 }
 
+/* ---------------- village details (water source, sweet potato gardens) ---------------- */
+function villageForm(){
+  setTitle('Village details');
+  V.innerHTML=`<div class="card"><p class="muted">Fill this in on your first visit to a village. If the village already has details, they load so you can correct them.</p>
+   <div id="v_loc"></div>
+   <label>Drinking water source</label><input id="v_water" placeholder="Name of the creek, spring or other water source" autocomplete="off">
+   <label>Sweet potato gardens</label><input id="v_garden" placeholder="Name of the mountain or field where the women farm kaukau" autocomplete="off">
+   <p id="v_msg" class="err"></p><div class="row"><button class="btn" id="v_save">Save village details</button></div></div>
+   <div class="card"><b>Villages with details</b><p class="muted" style="margin:4px 0 0">Tap a village to load it.</p><div id="v_list"></div></div>`;
+  const el=$('#v_loc'); let pk=picker(el,4), cur=null;
+  const key=a=>vkey(a.district,a.llg,a.ward,a.village);
+  const find=a=>live(MEM.village_profiles).filter(p=>key(p)===key(a)).sort((x,y)=>String(y.updated_at).localeCompare(String(x.updated_at)))[0]||null;
+  const load=()=>{ const ex=pk.ok()?find(pk.get()):null; if(ex===cur) return;
+    $('#v_water').value=ex?ex.water||'':''; $('#v_garden').value=ex?ex.garden||'':''; cur=ex;
+    $('#v_msg').innerHTML=ex?`<span class="muted">Already recorded ${esc(String(ex.updated_at||'').slice(0,10))} by ${esc(ex.updated_by||'')}. Change and save to correct it.</span>`:''; };
+  el.addEventListener('change',load);
+  const list=()=>{ const rows=Object.values(live(MEM.village_profiles).reduce((m,p)=>{ const k=key(p); if(!m[k]||String(p.updated_at)>String(m[k].updated_at)) m[k]=p; return m; },{}))
+      .sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,40);
+    $('#v_list').innerHTML=rows.length?`<table><tr><th>Village</th><th>Water source</th><th>Kaukau gardens</th></tr>${rows.map(p=>`<tr data-id="${p.id}" style="cursor:pointer"><td>${esc(p.village)}<div class="muted">${esc(nice(p.llg))} · W${esc(p.ward)}</div></td><td>${esc(p.water)}</td><td>${esc(p.garden)}</td></tr>`).join('')}</table>`:'<p class="muted">None yet.</p>';
+    $('#v_list').querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=()=>{ const p=live(MEM.village_profiles).find(x=>x.id===tr.dataset.id); pk=picker(el,4,p); cur=undefined; load(); window.scrollTo(0,0); }); };
+  list();
+  $('#v_save').onclick=async()=>{ const m=$('#v_msg');
+    if(!pk.ok()) return m.textContent='Choose the district, LLG, ward and village.';
+    const water=$('#v_water').value.trim(), garden=$('#v_garden').value.trim();
+    if(!water||!garden) return m.textContent='Enter both the water source and the sweet potato gardens.';
+    const a=pk.get(), ex=find(a), r=ex?{...ex}:{id:FC.uuid()}; Object.assign(r,a,{water,garden});
+    await saveRec('village_profiles',r); cur=r; m.innerHTML='<span class="ok">Saved on this tablet.</span>'; list(); };
+}
+
 /* ---------------- village meeting report ---------------- */
 function report(){
   setTitle('Village meeting report');
@@ -409,7 +440,7 @@ function coverage(){
 async function buildPayload(){
   const photos={}; for(const c of MEM.coordinators){ if(c.photo_id){ const p=await getPhoto(c.photo_id); if(p) photos[c.photo_id]=p; }
     if(FC.faceOK(c)&&c.side_photo_id){ const p=await getPhoto(c.side_photo_id); if(p) photos[c.side_photo_id]=p; } }
-  return {device:{id:META.device_id,name:META.device_name,officer:META.officer},exported_at:now(),coordinators:MEM.coordinators,village_gps:MEM.village_gps,village_reports:MEM.village_reports,photos};
+  return {device:{id:META.device_id,name:META.device_name,officer:META.officer},exported_at:now(),coordinators:MEM.coordinators,village_gps:MEM.village_gps,village_reports:MEM.village_reports,village_profiles:MEM.village_profiles,photos};
 }
 async function exportFile(){
   const pkg=await FC.makePackage(SYNC.sync,await buildPayload());
@@ -419,7 +450,7 @@ async function exportFile(){
 }
 async function importPkg(pkg){
   const inc=await FC.openPackage(SYNC.sync,pkg); let n=0;
-  for(const t of ['coordinators','village_gps','village_reports']) for(const r of inc[t]||[]){ const o=(MEM[t]||[]).find(x=>x.id===r.id); if(!o||(r.updated_at||'')>(o.updated_at||'')){ await DB.put('rec',r.id,{t,box:await FC.seal(KEY,r)}); if(o) Object.assign(o,r); else MEM[t].push(r); n++; } }
+  for(const t of ['coordinators','village_gps','village_reports','village_profiles']) for(const r of inc[t]||[]){ const o=(MEM[t]||[]).find(x=>x.id===r.id); if(!o||(r.updated_at||'')>(o.updated_at||'')){ await DB.put('rec',r.id,{t,box:await FC.seal(KEY,r)}); if(o) Object.assign(o,r); else MEM[t].push(r); n++; } }
   for(const [id,p] of Object.entries(inc.photos||{})){ if(!(await DB.get('photo',id))) await savePhoto(id,p); }
   await purgeSide();
   return n;

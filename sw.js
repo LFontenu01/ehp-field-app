@@ -1,5 +1,5 @@
 // Offline cache for the EHP field app. Bump VERSION whenever the app files change.
-const VERSION = 'ehp27-field-v8';
+const VERSION = 'ehp27-field-v9';
 const FILES = ['./', 'index.html', 'fieldcore.js', 'gazetteer.js', 'manifest.webmanifest', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

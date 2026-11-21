@@ -567,6 +567,7 @@ async function exportFile(){
 }
 async function importPkg(pkg){
   const inc=await FC.openPackage(SYNC.sync,pkg); let n=0;
+  if(inc.device&&inc.device.id==='warroom-full') throw new Error('This is a War Room full backup. Load it only in the War Room, never on a tablet.');
   for(const t of ['coordinators','village_gps','village_reports','village_profiles','languages']) for(const r of inc[t]||[]){ const o=(MEM[t]||[]).find(x=>x.id===r.id); if(!o||(r.updated_at||'')>(o.updated_at||'')){ await DB.put('rec',r.id,{t,box:await FC.seal(KEY,r)}); if(o) Object.assign(o,r); else MEM[t].push(r); n++; } }
   for(const [id,p] of Object.entries(inc.photos||{})){ if(!(await DB.get('photo',id))) await savePhoto(id,p); }
   for(const [id,a] of Object.entries(inc.audio||{})){ if(!(await DB.get('photo',id))) await savePhoto(id,a); }
